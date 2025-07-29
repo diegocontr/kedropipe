@@ -1,0 +1,45 @@
+# Here you can define all your datasets by using simple YAML syntax.
+#
+# Documentation for this file format can be found in "The Data Catalog"
+# Link: https://docs.kedro.org/en/stable/data/data_catalog.html
+
+# Raw data
+raw_segmentation_data:
+  type: pandas.ParquetDataset
+  filepath: data/raw/segmentation_data.parquet
+
+# Data preparation outputs  
+prepared_model_data:
+  type: pandas.ParquetDataset
+  filepath: data/processed/prepared_model_data.parquet
+
+# Store feature columns as CSV for simplicity
+feature_columns:
+  type: text.TextDataset
+  filepath: data/processed/feature_columns.txt
+
+# Model training datasets
+X_train:
+  type: pandas.ParquetDataset
+  filepath: data/processed/X_train.parquet
+
+X_test:
+  type: pandas.ParquetDataset
+  filepath: data/processed/X_test.parquet
+
+y_train:
+  type: text.TextDataset  # Store as CSV-like text
+  filepath: data/processed/y_train.txt
+
+y_test:
+  type: text.TextDataset  # Store as CSV-like text
+  filepath: data/processed/y_test.txt
+
+# Model outputs
+trained_model:
+  type: text.TextDataset  # Will store as text temporarily
+  filepath: data/models/trained_catboost_model.txt
+
+model_metrics:
+  type: text.TextDataset  # Will store as text temporarily
+  filepath: data/models/model_metrics.txt

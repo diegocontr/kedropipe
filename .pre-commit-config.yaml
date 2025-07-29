@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.11
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        exclude: ^kredo_pipeline/
+      - id: ruff-format
+        exclude: ^kredo_pipeline/
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        args: [tests/, -v, --tb=short]
+        pass_filenames: false
+        always_run: true

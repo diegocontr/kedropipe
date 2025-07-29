@@ -1,0 +1,19 @@
+{
+  "train_mae": 0.23174487657888546,
+  "test_mae": 0.23500833050018935,
+  "train_rmse": 0.3895690255558488,
+  "test_rmse": 0.3950409380166687,
+  "best_iteration": 41,
+  "feature_importance": {
+    "age": 47.32412118745478,
+    "income": 35.97043896648146,
+    "credit_score": 16.705439846063783
+  },
+  "model_params": {
+    "loss_function": "Poisson",
+    "iterations": 1000,
+    "learning_rate": 0.1,
+    "depth": 6,
+    "best_iteration": 41
+  }
+}

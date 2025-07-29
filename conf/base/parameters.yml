@@ -1,0 +1,27 @@
+# Data preparation parameters
+data_preparation:
+  feature_columns:
+    - age
+    - income
+    - credit_score
+  target_column: target_B  # Change this to target_A, target_B, target_C, or any other target column
+
+# Model training parameters
+model_training:
+  # Data splitting
+  test_size: 0.2
+  random_state: 42
+  
+  # CatBoost model parameters
+  loss_function: "Poisson"  # Default Poisson loss for count data
+  iterations: 1000
+  learning_rate: 0.1
+  depth: 6
+  early_stopping_rounds: 100
+  verbose: 100
+
+# Examples for different targets:
+# For target_A: change target_column to "target_A"
+# For target_B: change target_column to "target_B" 
+# For target_C: change target_column to "target_C"
+# For any custom target: change target_column to your desired column name
