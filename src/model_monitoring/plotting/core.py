@@ -512,7 +512,7 @@ def plot_segment_statistics(
     num_panels = len(grouped_configs)
     if num_panels == 0:
         print("No panels configured to plot.")
-        return
+        return None
 
     fig, axes = _setup_figure(num_panels, figsize, figure_layout)
 
@@ -563,4 +563,4 @@ def plot_segment_statistics(
         ax.set_xticklabels(x_labels, rotation=45, ha="right")
 
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
+    return fig

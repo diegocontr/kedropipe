@@ -20,6 +20,25 @@ model_training:
   early_stopping_rounds: 100
   verbose: 100
 
+# Model validation parameters
+model_validation:
+  # Column mappings
+  target_column: target_B
+  prediction_column: prediction_new
+  weight_column: weight
+  old_model_column: prediction_A  # Optional: column name for old model predictions for comparison
+  
+  # Analysis settings
+  bootstrap: false  # Whether to use bootstrap for confidence intervals
+  old_model_noise_factor: 0.1  # Noise factor for synthetic old model generation
+  
+  # Reporting settings
+  plot_theme:
+    annotation_fontsize: 14
+    style: "ggplot"
+    target_color: "#1E1D25"
+    h_line_style: ":"
+
 # Examples for different targets:
 # For target_A: change target_column to "target_A"
 # For target_B: change target_column to "target_B" 

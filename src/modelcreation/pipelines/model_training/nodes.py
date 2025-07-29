@@ -190,14 +190,8 @@ def train_catboost_model(
     for feature, importance in sorted(feature_importance.items(), key=lambda x: x[1], reverse=True):
         logger.info(f"  {feature}: {importance:.4f}")
     
-    # Serialize model and metrics as text
-    import base64
-    import pickle
-    
-    model_bytes = pickle.dumps(model)
-    model_str = base64.b64encode(model_bytes).decode('utf-8')
-    
+    # Return the actual model object and metrics as JSON string
     import json
     metrics_str = json.dumps(metrics, indent=2)
     
-    return model_str, metrics_str
+    return model, metrics_str

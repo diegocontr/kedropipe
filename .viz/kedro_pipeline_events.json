@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-07-29T21:34:27.182000+00:00"
+    "timestamp": "2025-07-29T21:40:52.105023+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.024055404006503522,
+    "duration": 0.02298884499759879,
     "status": "success"
   },
   {
@@ -56,7 +56,7 @@
     "event": "after_node_run",
     "node": "split_data_node",
     "node_id": "2b3b62ea",
-    "duration": 0.028769860000465997,
+    "duration": 0.028133286992670037,
     "status": "success"
   },
   {
@@ -133,7 +133,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 0.6168547100096475,
+    "duration": 0.5833600940095494,
     "status": "success"
   },
   {
@@ -152,6 +152,6 @@
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-07-29T21:34:27.952050+00:00"
+    "timestamp": "2025-07-29T21:40:52.843278+00:00"
   }
 ]

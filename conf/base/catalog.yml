@@ -37,9 +37,34 @@ y_test:
 
 # Model outputs
 trained_model:
-  type: text.TextDataset  # Will store as text temporarily
-  filepath: data/models/trained_catboost_model.txt
+  type: pickle.PickleDataset  
+  filepath: data/models/trained_catboost_model.pkl
 
 model_metrics:
   type: text.TextDataset  # Will store as text temporarily
   filepath: data/models/model_metrics.txt
+
+# Model validation outputs
+model_predictions:
+  type: pandas.ParquetDataset
+  filepath: data/processed/model_predictions.parquet
+
+validation_dataset:
+  type: pandas.ParquetDataset
+  filepath: data/processed/validation_dataset.parquet
+
+validation_metrics:
+  type: pandas.ParquetDataset
+  filepath: data/processed/validation_metrics.parquet
+
+segmented_metrics:
+  type: pickle.PickleDataset
+  filepath: data/processed/segmented_metrics.pkl
+
+model_comparison_results:
+  type: json.JSONDataset
+  filepath: data/processed/model_comparison_results.json
+
+validation_report_paths:
+  type: json.JSONDataset
+  filepath: data/reporting/validation_report_paths.json

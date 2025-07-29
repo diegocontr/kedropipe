@@ -1,0 +1,25 @@
+MODEL VALIDATION SUMMARY\n==================================================\n\nOVERALL METRICS:\n                   value
+prediction_new  0.165103
+target_B        0.151500
+gini            0.469431
+exposure(k)     2.000000
+prediction_A    0.165641
+gini_old        0.469599
+S/PP            0.917611
+S/PP_old        0.914630\n\nMODEL COMPARISON:\nS/PP_improvement: 0.0030\ngini_improvement: -0.0002\n\nSEGMENT METRICS:\n\nAGE_GROUP:\n           prediction_new  target_B      gini  exposure(k)  prediction_A  gini_old      S/PP  S/PP_old    segment
+age_group                                                                                                        
+18-29            0.063542  0.041485  0.386463        0.458      0.064003  0.372213  0.652873  0.648166  age_group
+30-44            0.109682  0.113821  0.409524        0.615      0.109657  0.417979  1.037738  1.037973  age_group
+45-59            0.189671  0.182640  0.291014        0.553      0.190300  0.290047  0.962933  0.959749  age_group
+60+              0.344280  0.302139  0.347712        0.374      0.345703  0.342175  0.877596  0.873984  age_group\n\nINCOME_LEVEL:\n                          prediction_new  target_B      gini  exposure(k)  prediction_A  gini_old      S/PP  S/PP_old       segment
+income_level                                                                                                                       
+[1468.57, 94254.749)            0.105622  0.097037  0.390348        1.350      0.105904  0.398513  0.918719  0.916273  income_level
+[94254.749, 187040.927)         0.223072  0.226488  0.379550        0.521      0.224452  0.372166  1.015313  1.009069  income_level
+[187040.927, 279827.105)        0.491062  0.365217  0.404555        0.115      0.492400  0.399172  0.743729  0.741708  income_level
+[279827.105, 372613.284)        1.125124  0.583333  0.107143        0.012      1.117084  0.107143  0.518462  0.522193  income_level
+[372613.284, 465863.393)        0.710702  2.500000  0.300000        0.002      0.670252  0.300000  3.517648  3.729942  income_level\n\nCREDIT_SCORE_GROUP:\n                    prediction_new  target_B      gini  exposure(k)  prediction_A  gini_old      S/PP  S/PP_old             segment
+credit_score_group                                                                                                                 
+Poor                      0.216882  0.189282  0.421989        0.877      0.218300  0.425135  0.872740  0.867071  credit_score_group
+Fair                      0.144017  0.121693  0.416724        0.378      0.143476  0.408558  0.844994  0.848178  credit_score_group
+Good                      0.126119  0.132979  0.578723        0.376      0.125808  0.576915  1.054389  1.057000  credit_score_group
+Excellent                 0.103362  0.111111  0.490581        0.369      0.103780  0.493357  1.074974  1.070640  credit_score_group\n
