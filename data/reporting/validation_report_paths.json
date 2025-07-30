@@ -1,6 +1,6 @@
 {
-  "plot_age_group": "data/reporting/validation_report_age_group.png",
-  "plot_income_level": "data/reporting/validation_report_income_level.png",
-  "plot_credit_score_group": "data/reporting/validation_report_credit_score_group.png",
+  "plot_age_group": "mlflow_artifact:1288345cf5ea41bbb2c8c86b5e46c654/validation_plots/validation_report_age_group.png",
+  "plot_income_level": "mlflow_artifact:1288345cf5ea41bbb2c8c86b5e46c654/validation_plots/validation_report_income_level.png",
+  "plot_credit_score_group": "mlflow_artifact:1288345cf5ea41bbb2c8c86b5e46c654/validation_plots/validation_report_credit_score_group.png",
   "summary": "data/reporting/validation_summary.txt"
 }

@@ -18,7 +18,7 @@ The model validation pipeline consists of the following nodes:
 - **S/PP Ratios**: Observed vs Predicted ratios across segments
 - **Gini Coefficients**: Model discriminatory power measurement
 - **Exposure Analysis**: Volume analysis across segments
-- **Segmented Analysis**: Performance breakdown by age groups, income levels, credit scores, etc.
+- **Segmented Analysis**: Performance breakdown by all numeric features with configurable binning strategies
 
 ### Model Comparison
 - Compares new model with optional old model predictions

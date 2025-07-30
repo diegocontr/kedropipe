@@ -28,6 +28,26 @@ model_validation:
   weight_column: weight
   old_model_column: prediction_A  # Optional: column name for old model predictions for comparison
   
+  # MLflow settings
+  use_mlflow: true  # Whether to use MLflow for model loading and artifact storage
+  
+  # Feature segmentation settings
+  feature_binning:
+    # Default binning strategy for all features (if not specified individually)
+    default_bins: 5  # Number of quantile-based bins
+    
+    # Custom binning for specific features
+    age:  # Keep original age binning as example
+      bins: [18, 30, 45, 60, 75]
+      labels: ["18-29", "30-44", "45-59", "60+"]
+    
+    credit_score:  # Example: custom bins for credit score
+      bins: [300, 550, 650, 750, 850]
+      labels: ["Poor", "Fair", "Good", "Excellent"]
+    # 
+    # income:  # Example: use 4 quantile bins for income
+    #   bins: 4
+  
   # Analysis settings
   bootstrap: false  # Whether to use bootstrap for confidence intervals
   old_model_noise_factor: 0.1  # Noise factor for synthetic old model generation

@@ -27,7 +27,7 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=generate_model_predictions,
-                inputs=["trained_model", "X_test", "params:model_validation"],
+                inputs=["trained_model", "model_metrics", "X_test", "params:model_validation"],
                 outputs="model_predictions",
                 name="generate_predictions_node",
             ),
@@ -66,6 +66,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "validation_metrics", 
                     "segmented_metrics",
                     "model_comparison_results",
+                    "model_metrics",
                     "params:model_validation"
                 ],
                 outputs="validation_report_paths",

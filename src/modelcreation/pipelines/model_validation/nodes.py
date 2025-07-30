@@ -8,6 +8,8 @@ from typing import Any, Dict, Tuple
 
 import numpy as np
 import pandas as pd
+import mlflow
+import mlflow.catboost
 
 from model_monitoring import (
     AnalysisDataBuilder,
@@ -20,15 +22,143 @@ from model_monitoring.plotting import plot_segment_statistics, set_plot_theme
 logger = logging.getLogger(__name__)
 
 
+def create_feature_segments(validation_dataset: pd.DataFrame, parameters: Dict[str, Any]) -> list:
+    """Create segments for all feature columns based on configuration.
+    
+    Args:
+        validation_dataset: Validation dataset with features
+        parameters: Model validation parameters including feature_binning config
+        
+    Returns:
+        List of SegmentCustom objects for all features
+    """
+    segments = []
+    
+    # Get binning configuration
+    feature_binning = parameters.get('feature_binning', {})
+    default_bins = feature_binning.get('default_bins', 5)
+    
+    # Get feature columns (exclude target, prediction, weight columns)
+    exclude_cols = {
+        parameters.get('target_column', 'target_B'),
+        parameters.get('prediction_column', 'prediction_new'), 
+        parameters.get('weight_column', 'weight'),
+        parameters.get('old_model_column', 'prediction_A')
+    }
+    
+    # Add any prediction columns that might exist
+    prediction_cols = [col for col in validation_dataset.columns if col.startswith('prediction')]
+    exclude_cols.update(prediction_cols)
+    
+    # Get feature columns
+    feature_cols = [col for col in validation_dataset.columns 
+                   if col not in exclude_cols and validation_dataset[col].dtype in ['int64', 'float64']]
+    
+    logger.info(f"Creating segments for features: {feature_cols}")
+    
+    for feature in feature_cols:
+        # Get custom binning for this feature, or use default
+        feature_config = feature_binning.get(feature, {})
+        
+        # Check if custom bins and labels are provided
+        if 'bins' in feature_config and 'labels' in feature_config:
+            # Custom bins with labels
+            bins = feature_config['bins']
+            labels = feature_config['labels']
+            segment_name = f"{feature}_group"
+            
+            logger.info(f"Using custom binning for {feature}: bins={bins}, labels={labels}")
+            
+        elif 'bins' in feature_config and isinstance(feature_config['bins'], list):
+            # Custom bin edges without labels
+            bins = feature_config['bins']
+            labels = None  # Will be auto-generated
+            segment_name = f"{feature}_group"
+            
+            logger.info(f"Using custom bin edges for {feature}: bins={bins}")
+            
+        elif 'bins' in feature_config and isinstance(feature_config['bins'], int):
+            # Number of quantile bins
+            bins = feature_config['bins']
+            labels = None
+            segment_name = f"{feature}_level"
+            
+            logger.info(f"Using {bins} quantile bins for {feature}")
+            
+        else:
+            # Use default binning
+            bins = default_bins
+            labels = None
+            segment_name = f"{feature}_level"
+            
+            logger.info(f"Using default {bins} quantile bins for {feature}")
+        
+        # Create segment
+        if labels:
+            segment = SegmentCustom(
+                seg_col=feature,
+                seg_name=segment_name,
+                bins=bins,
+                bin_labels=labels
+            )
+        else:
+            segment = SegmentCustom(
+                seg_col=feature,
+                seg_name=segment_name, 
+                bins=bins
+            )
+            
+        segments.append(segment)
+    
+    logger.info(f"Created {len(segments)} feature segments")
+    return segments
+
+
+def load_model_from_mlflow(
+    model_metrics: str,
+    parameters: Dict[str, Any]
+) -> Any:
+    """Load model from MLflow using the run ID stored in model metrics.
+    
+    Args:
+        model_metrics: JSON string containing model metrics with MLflow run ID
+        parameters: Model validation parameters
+        
+    Returns:
+        Loaded model from MLflow
+    """
+    import json
+    
+    logger.info("Loading model from MLflow")
+    
+    # Parse model metrics to get MLflow run ID
+    metrics = json.loads(model_metrics)
+    run_id = metrics.get('mlflow_run_id')
+    
+    if not run_id:
+        raise ValueError("No MLflow run ID found in model metrics. Make sure the model was trained with MLflow.")
+    
+    logger.info(f"Loading model from MLflow run: {run_id}")
+    
+    # Load model from MLflow
+    model_uri = f"runs:/{run_id}/catboost_model"
+    model = mlflow.catboost.load_model(model_uri)
+    
+    logger.info(f"Successfully loaded model from MLflow: {model_uri}")
+    return model
+
+
 def generate_model_predictions(
     trained_model: Any,
+    model_metrics: str,
     X_test: pd.DataFrame,
     parameters: Dict[str, Any]
 ) -> pd.DataFrame:
-    """Generate predictions from the trained model.
+    """Generate predictions from the trained model, optionally loading from MLflow.
     
     Args:
-        trained_model: The trained model object
+        trained_model: The trained model object (fallback)
+        model_metrics: JSON string containing model metrics with MLflow run ID
         X_test: Test features dataframe
         parameters: Model validation parameters
         
@@ -37,11 +167,26 @@ def generate_model_predictions(
     """
     logger.info("Generating model predictions")
     
-    # Make predictions
-    if hasattr(trained_model, 'predict'):
-        predictions = trained_model.predict(X_test)
+    # Try to load model from MLflow first, fallback to trained_model
+    use_mlflow = parameters.get('use_mlflow', True)
+    
+    if use_mlflow:
+        try:
+            model = load_model_from_mlflow(model_metrics, parameters)
+            logger.info("Using model loaded from MLflow")
+        except Exception as e:
+            logger.warning(f"Failed to load model from MLflow: {e}")
+            logger.info("Falling back to direct model object")
+            model = trained_model
     else:
-        raise ValueError(f"Model does not have a predict method. Model type: {type(trained_model)}")
+        logger.info("Using direct model object (MLflow disabled)")
+        model = trained_model
+    
+    # Make predictions
+    if hasattr(model, 'predict'):
+        predictions = model.predict(X_test)
+    else:
+        raise ValueError(f"Model does not have a predict method. Model type: {type(model)}")
     
     # Create predictions dataframe
     predictions_df = pd.DataFrame({
@@ -158,40 +303,8 @@ def calculate_validation_metrics(
             extra_cols=extra_cols
         )
         
-        # Define segments
-        segments = []
-        
-        # Age segments (if age column exists)
-        if 'age' in validation_dataset.columns:
-            segments.append(
-                SegmentCustom(
-                    seg_col="age",
-                    seg_name="age_group", 
-                    bins=[18, 30, 45, 60, 75],
-                    bin_labels=["18-29", "30-44", "45-59", "60+"],
-                )
-            )
-        
-        # Income segments (if income column exists)
-        if 'income' in validation_dataset.columns:
-            segments.append(
-                SegmentCustom(
-                    seg_col="income", 
-                    seg_name="income_level", 
-                    bins=5
-                )
-            )
-        
-        # Credit score segments (if exists)
-        if 'credit_score' in validation_dataset.columns:
-            segments.append(
-                SegmentCustom(
-                    seg_col="credit_score",
-                    seg_name="credit_score_group",
-                    bins=[300, 550, 650, 750, 850],
-                    bin_labels=["Poor", "Fair", "Good", "Excellent"]
-                )
-            )
+        # Define segments using the generic function
+        segments = create_feature_segments(validation_dataset, parameters)
         
         # Add segments to analysis
         for segment in segments:
@@ -315,23 +428,44 @@ def generate_validation_reports(
     validation_metrics: pd.DataFrame, 
     segmented_metrics: Dict[str, pd.DataFrame],
     model_comparison_results: Dict[str, Any],
+    model_metrics: str,
     parameters: Dict[str, Any]
 ) -> Dict[str, str]:
-    """Generate validation reports and visualizations.
+    """Generate validation reports and visualizations, saving plots as MLflow artifacts.
     
     Args:
         validation_dataset: Validation dataset
         validation_metrics: Overall metrics
         segmented_metrics: Segmented metrics  
         model_comparison_results: Model comparison results
+        model_metrics: JSON string containing model metrics with MLflow run ID
         parameters: Validation parameters
         
     Returns:
         Dictionary with paths to generated reports
     """
-    logger.info("Generating validation reports")
+    import json
+    import tempfile
+    import matplotlib.pyplot as plt
     
-    # Create reporting directory
+    logger.info("Generating validation reports with MLflow artifacts")
+    
+    # Get MLflow run ID for artifact logging
+    use_mlflow = parameters.get('use_mlflow', True)
+    run_id = None
+    
+    if use_mlflow:
+        try:
+            metrics = json.loads(model_metrics)
+            run_id = metrics.get('mlflow_run_id')
+            if run_id:
+                logger.info(f"Will save artifacts to MLflow run: {run_id}")
+            else:
+                logger.warning("No MLflow run ID found, saving locally only")
+        except Exception as e:
+            logger.warning(f"Failed to parse MLflow run ID: {e}")
+    
+    # Create reporting directory for local fallback
     report_dir = Path("data/reporting")
     report_dir.mkdir(exist_ok=True)
     
@@ -405,18 +539,51 @@ def generate_validation_reports(
                 agg_stats=validation_metrics
             )
             
-            # Save the plot without displaying
-            plot_path = report_dir / f"validation_report_{segment_name}.png"
             if fig:
-                # Close any existing plots to prevent display during pipeline execution
-                import matplotlib.pyplot as plt
-                plt.ioff()  # Turn off interactive mode
+                # Turn off interactive mode to prevent display
+                plt.ioff()
                 
-                fig.savefig(plot_path, dpi=300, bbox_inches='tight')
-                plt.close(fig)  # Close the figure to free memory and prevent display
+                # Save to temporary file first
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                    tmp_path = tmp_file.name
+                    fig.savefig(tmp_path, dpi=300, bbox_inches='tight')
                 
-                generated_files[f"plot_{segment_name}"] = str(plot_path)
-                logger.info(f"Saved plot to {plot_path}")
+                # Save as MLflow artifact if run_id is available
+                if run_id and use_mlflow:
+                    try:
+                        # Create a client to log artifact to specific run
+                        client = mlflow.tracking.MlflowClient()
+                        artifact_dir = "validation_plots"
+                        client.log_artifact(run_id, tmp_path, artifact_dir)
+                        
+                        # The artifact path will be artifact_dir/filename
+                        filename = f"validation_report_{segment_name}.png"
+                        artifact_path = f"{artifact_dir}/{filename}"
+                        generated_files[f"plot_{segment_name}"] = f"mlflow_artifact:{run_id}/{artifact_path}"
+                        logger.info(f"Saved plot as MLflow artifact: {artifact_path}")
+                        
+                    except Exception as e:
+                        logger.warning(f"Failed to save MLflow artifact: {e}")
+                        # Fallback to local save
+                        plot_path = report_dir / f"validation_report_{segment_name}.png"
+                        fig.savefig(plot_path, dpi=300, bbox_inches='tight')
+                        generated_files[f"plot_{segment_name}"] = str(plot_path)
+                        logger.info(f"Saved plot locally: {plot_path}")
+                else:
+                    # Save locally
+                    plot_path = report_dir / f"validation_report_{segment_name}.png"
+                    fig.savefig(plot_path, dpi=300, bbox_inches='tight')
+                    generated_files[f"plot_{segment_name}"] = str(plot_path)
+                    logger.info(f"Saved plot locally: {plot_path}")
+                
+                # Clean up temporary file
+                try:
+                    os.unlink(tmp_path)
+                except Exception as e:
+                    logger.debug(f"Could not clean up temporary file {tmp_path}: {e}")
+                
+                # Close the figure to free memory
+                plt.close(fig)
             
         except Exception as e:
             logger.error(f"Error generating plot for {segment_name}: {e!s}")
