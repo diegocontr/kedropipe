@@ -14,6 +14,7 @@ import mlflow
 import mlflow.catboost
 
 from model_monitoring.plotting import plot_segment_statistics, set_plot_theme
+from .nodes_global import generate_global_analysis_plots
 
 
 logger = logging.getLogger(__name__)
@@ -162,60 +163,91 @@ def prepare_validation_data(
 
 
 
-def generate_validation_reports(
-    validation_dataset: pd.DataFrame,
-    validation_metrics: pd.DataFrame, 
-    segmented_metrics: Dict[str, pd.DataFrame],
-    model_metrics: str,
-    parameters: Dict[str, Any]
-) -> Dict[str, str]:
-    """Generate validation reports and visualizations, saving plots as MLflow artifacts.
+def _save_plot_as_artifact(
+    fig: plt.Figure,
+    plot_name: str,
+    run_id: str,
+    use_mlflow: bool,
+    artifact_dir: str,
+    report_dir: Path,
+    generated_files: Dict[str, str]
+) -> None:
+    """Save a plot as MLflow artifact or locally.
     
     Args:
-        validation_dataset: Validation dataset
-        validation_metrics: Overall metrics (includes has_old_model flag)
-        segmented_metrics: Segmented metrics  
-        model_metrics: JSON string containing model metrics with MLflow run ID
-        parameters: Validation parameters
-        
-    Returns:
-        Dictionary with paths to generated reports
+        fig: Matplotlib figure to save
+        plot_name: Name for the plot file
+        run_id: MLflow run ID
+        use_mlflow: Whether to use MLflow
+        artifact_dir: MLflow artifact directory
+        report_dir: Local report directory
+        generated_files: Dictionary to store file paths
     """
-    logger.info("Generating validation reports with MLflow artifacts")
+    # Save to temporary file first
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+        tmp_path = tmp_file.name
+        fig.savefig(tmp_path, dpi=300, bbox_inches='tight')
     
-    # Get old model availability from metrics
-    has_old_model = bool(validation_metrics.loc['has_old_model'].iloc[0]) if 'has_old_model' in validation_metrics.index else False
-    old_model_col = parameters.get('old_model_column') if has_old_model else None
-    
-    # Get MLflow run ID for artifact logging
-    use_mlflow = parameters.get('use_mlflow', True)
-    run_id = None
-    
-    if use_mlflow:
+    # Save as MLflow artifact if run_id is available
+    if run_id and use_mlflow:
         try:
-            metrics = json.loads(model_metrics)
-            run_id = metrics.get('mlflow_run_id')
-            if run_id:
-                logger.info(f"Will save artifacts to MLflow run: {run_id}")
-            else:
-                logger.warning("No MLflow run ID found, saving locally only")
+            client = mlflow.tracking.MlflowClient()
+            client.log_artifact(run_id, tmp_path, artifact_dir)
+            
+            filename = f"{plot_name}.png"
+            artifact_path = f"{artifact_dir}/{filename}"
+            generated_files[plot_name] = f"mlflow_artifact:{run_id}/{artifact_path}"
+            logger.info(f"Saved plot as MLflow artifact: {artifact_path}")
+            
         except Exception as e:
-            logger.warning(f"Failed to parse MLflow run ID: {e}")
+            logger.warning(f"Failed to save MLflow artifact: {e}")
+            # Fallback to local save
+            plot_path = report_dir / f"{plot_name}.png"
+            fig.savefig(plot_path, dpi=300, bbox_inches='tight')
+            generated_files[plot_name] = str(plot_path)
+            logger.info(f"Saved plot locally: {plot_path}")
+    else:
+        # Save locally
+        plot_path = report_dir / f"{plot_name}.png"
+        fig.savefig(plot_path, dpi=300, bbox_inches='tight')
+        generated_files[plot_name] = str(plot_path)
+        logger.info(f"Saved plot locally: {plot_path}")
     
-    # Create reporting directory for local fallback
-    report_dir = Path("data/reporting")
-    report_dir.mkdir(exist_ok=True)
+    # Clean up temporary file
+    try:
+        os.unlink(tmp_path)
+    except Exception as e:
+        logger.debug(f"Could not clean up temporary file {tmp_path}: {e}")
     
-    # Set plotting theme
-    set_plot_theme(
-        annotation_fontsize=14, 
-        style="ggplot", 
-        target_color="#1E1D25", 
-        h_line_style=":"
-    )
+    # Close the figure to free memory
+    plt.close(fig)
+
+
+def _generate_segment_reports(
+    segmented_metrics: Dict[str, pd.DataFrame],
+    validation_metrics: pd.DataFrame,
+    has_old_model: bool,
+    parameters: Dict[str, Any],
+    run_id: str,
+    use_mlflow: bool,
+    report_dir: Path,
+    generated_files: Dict[str, str]
+) -> None:
+    """Generate segmented validation reports.
     
+    Args:
+        segmented_metrics: Segmented metrics
+        validation_metrics: Overall metrics
+        has_old_model: Whether old model is available
+        parameters: Validation parameters
+        run_id: MLflow run ID
+        use_mlflow: Whether to use MLflow
+        report_dir: Local report directory
+        generated_files: Dictionary to store file paths
+    """
     target_col = parameters.get('target_column', 'target_B')
     pred_col = parameters.get('prediction_column', 'prediction_new')
+    old_model_col = parameters.get('old_model_column') if has_old_model else None
     
     # Define report panels - multiple curves in same plots
     report_panels = [
@@ -261,8 +293,6 @@ def generate_validation_reports(
             "colors": ["#3D27B9"],
         })
     
-    generated_files = {}
-    
     # Generate plots for each segment
     for segment_name, stats_df in segmented_metrics.items():
         logger.info(f"Generating report for segment: {segment_name}")
@@ -279,52 +309,80 @@ def generate_validation_reports(
                 # Turn off interactive mode to prevent display
                 plt.ioff()
                 
-                # Save to temporary file first
-                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                    tmp_path = tmp_file.name
-                    fig.savefig(tmp_path, dpi=300, bbox_inches='tight')
-                
-                # Save as MLflow artifact if run_id is available
-                if run_id and use_mlflow:
-                    try:
-                        # Create a client to log artifact to specific run
-                        client = mlflow.tracking.MlflowClient()
-                        artifact_dir = "validation_plots"
-                        client.log_artifact(run_id, tmp_path, artifact_dir)
-                        
-                        # The artifact path will be artifact_dir/filename
-                        filename = f"validation_report_{segment_name}.png"
-                        artifact_path = f"{artifact_dir}/{filename}"
-                        generated_files[f"plot_{segment_name}"] = f"mlflow_artifact:{run_id}/{artifact_path}"
-                        logger.info(f"Saved plot as MLflow artifact: {artifact_path}")
-                        
-                    except Exception as e:
-                        logger.warning(f"Failed to save MLflow artifact: {e}")
-                        # Fallback to local save
-                        plot_path = report_dir / f"validation_report_{segment_name}.png"
-                        fig.savefig(plot_path, dpi=300, bbox_inches='tight')
-                        generated_files[f"plot_{segment_name}"] = str(plot_path)
-                        logger.info(f"Saved plot locally: {plot_path}")
-                else:
-                    # Save locally
-                    plot_path = report_dir / f"validation_report_{segment_name}.png"
-                    fig.savefig(plot_path, dpi=300, bbox_inches='tight')
-                    generated_files[f"plot_{segment_name}"] = str(plot_path)
-                    logger.info(f"Saved plot locally: {plot_path}")
-                
-                # Clean up temporary file
-                try:
-                    os.unlink(tmp_path)
-                except Exception as e:
-                    logger.debug(f"Could not clean up temporary file {tmp_path}: {e}")
-                
-                # Close the figure to free memory
-                plt.close(fig)
+                plot_name = f"plot_{segment_name}"
+                _save_plot_as_artifact(
+                    fig=fig,
+                    plot_name=f"validation_report_{segment_name}",
+                    run_id=run_id,
+                    use_mlflow=use_mlflow,
+                    artifact_dir="validation_plots",
+                    report_dir=report_dir,
+                    generated_files=generated_files
+                )
+                # Update the key to match the original structure
+                if f"validation_report_{segment_name}" in generated_files:
+                    generated_files[plot_name] = generated_files.pop(f"validation_report_{segment_name}")
             
         except Exception as e:
             logger.error(f"Error generating plot for {segment_name}: {e!s}")
+
+
+def _generate_global_reports(
+    validation_dataset: pd.DataFrame,
+    parameters: Dict[str, Any],
+    run_id: str,
+    use_mlflow: bool,
+    report_dir: Path,
+    generated_files: Dict[str, str]
+) -> None:
+    """Generate global analysis reports.
     
-    # Generate summary statistics file
+    Args:
+        validation_dataset: Validation dataset
+        parameters: Validation parameters
+        run_id: MLflow run ID
+        use_mlflow: Whether to use MLflow
+        report_dir: Local report directory
+        generated_files: Dictionary to store file paths
+    """
+    try:
+        logger.info("Generating global analysis plots")
+        global_plots = generate_global_analysis_plots(validation_dataset, parameters)
+        
+        for plot_category, figures in global_plots.items():
+            for i, fig in enumerate(figures):
+                plot_name = f"global_{plot_category}_{i}" if len(figures) > 1 else f"global_{plot_category}"
+                
+                _save_plot_as_artifact(
+                    fig=fig,
+                    plot_name=plot_name,
+                    run_id=run_id,
+                    use_mlflow=use_mlflow,
+                    artifact_dir="global_analysis_plots",
+                    report_dir=report_dir,
+                    generated_files=generated_files
+                )
+                
+    except Exception as e:
+        logger.error(f"Error generating global analysis plots: {e!s}")
+
+
+def _generate_summary_file(
+    validation_metrics: pd.DataFrame,
+    segmented_metrics: Dict[str, pd.DataFrame],
+    has_old_model: bool,
+    report_dir: Path,
+    generated_files: Dict[str, str]
+) -> None:
+    """Generate summary statistics file.
+    
+    Args:
+        validation_metrics: Overall metrics
+        segmented_metrics: Segmented metrics
+        has_old_model: Whether old model is available
+        report_dir: Local report directory
+        generated_files: Dictionary to store file paths
+    """
     summary_path = report_dir / "validation_summary.txt"
     with open(summary_path, 'w') as f:
         f.write("MODEL VALIDATION SUMMARY\\n")
@@ -349,6 +407,91 @@ def generate_validation_reports(
             f.write("\\n")
     
     generated_files['summary'] = str(summary_path)
+
+
+def generate_validation_reports(
+    validation_dataset: pd.DataFrame,
+    validation_metrics: pd.DataFrame, 
+    segmented_metrics: Dict[str, pd.DataFrame],
+    model_metrics: str,
+    parameters: Dict[str, Any]
+) -> Dict[str, str]:
+    """Generate validation reports and visualizations, saving plots as MLflow artifacts.
+    
+    Args:
+        validation_dataset: Validation dataset
+        validation_metrics: Overall metrics (includes has_old_model flag)
+        segmented_metrics: Segmented metrics  
+        model_metrics: JSON string containing model metrics with MLflow run ID
+        parameters: Validation parameters
+        
+    Returns:
+        Dictionary with paths to generated reports
+    """
+    logger.info("Generating validation reports with MLflow artifacts")
+    
+    # Get old model availability from metrics
+    has_old_model = bool(validation_metrics.loc['has_old_model'].iloc[0]) if 'has_old_model' in validation_metrics.index else False
+    
+    # Get MLflow run ID for artifact logging
+    use_mlflow = parameters.get('use_mlflow', True)
+    run_id = None
+    
+    if use_mlflow:
+        try:
+            metrics = json.loads(model_metrics)
+            run_id = metrics.get('mlflow_run_id')
+            if run_id:
+                logger.info(f"Will save artifacts to MLflow run: {run_id}")
+            else:
+                logger.warning("No MLflow run ID found, saving locally only")
+        except Exception as e:
+            logger.warning(f"Failed to parse MLflow run ID: {e}")
+    
+    # Create reporting directory for local fallback
+    report_dir = Path("data/reporting")
+    report_dir.mkdir(exist_ok=True)
+    
+    # Set plotting theme
+    set_plot_theme(
+        annotation_fontsize=14, 
+        style="ggplot", 
+        target_color="#1E1D25", 
+        h_line_style=":"
+    )
+    
+    generated_files = {}
+    
+    # Generate segmented reports
+    _generate_segment_reports(
+        segmented_metrics=segmented_metrics,
+        validation_metrics=validation_metrics,
+        has_old_model=has_old_model,
+        parameters=parameters,
+        run_id=run_id,
+        use_mlflow=use_mlflow,
+        report_dir=report_dir,
+        generated_files=generated_files
+    )
+    
+    # Generate global analysis reports
+    _generate_global_reports(
+        validation_dataset=validation_dataset,
+        parameters=parameters,
+        run_id=run_id,
+        use_mlflow=use_mlflow,
+        report_dir=report_dir,
+        generated_files=generated_files
+    )
+    
+    # Generate summary file
+    _generate_summary_file(
+        validation_metrics=validation_metrics,
+        segmented_metrics=segmented_metrics,
+        has_old_model=has_old_model,
+        report_dir=report_dir,
+        generated_files=generated_files
+    )
     
     logger.info(f"Generated {len(generated_files)} report files")
     return generated_files
