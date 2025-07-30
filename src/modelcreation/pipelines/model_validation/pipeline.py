@@ -5,10 +5,9 @@ from kedro.pipeline import Pipeline, node
 from .nodes import (
     generate_model_predictions,
     prepare_validation_data,
-    calculate_validation_metrics,
-    compare_with_old_model,
     generate_validation_reports
 )
+from .nodes_by_feature import calculate_validation_metrics
 
 
 def create_pipeline(**kwargs) -> Pipeline:
@@ -49,23 +48,11 @@ def create_pipeline(**kwargs) -> Pipeline:
                 name="calculate_metrics_node",
             ),
             node(
-                func=compare_with_old_model,
-                inputs=[
-                    "validation_dataset", 
-                    "validation_metrics", 
-                    "segmented_metrics",
-                    "params:model_validation"
-                ],
-                outputs="model_comparison_results",
-                name="model_comparison_node",
-            ),
-            node(
                 func=generate_validation_reports,
                 inputs=[
                     "validation_dataset",
                     "validation_metrics", 
                     "segmented_metrics",
-                    "model_comparison_results",
                     "model_metrics",
                     "params:model_validation"
                 ],

@@ -6,7 +6,11 @@ exposure(k)     2.000000
 prediction_A    0.165641
 gini_old        0.469599
 S/PP            0.917611
-S/PP_old        0.914630\n\nMODEL COMPARISON:\nS/PP_improvement: 0.0030\ngini_improvement: -0.0002\n\nSEGMENT METRICS:\n\nAGE_GROUP:\n           prediction_new  target_B      gini  exposure(k)  prediction_A  gini_old      S/PP  S/PP_old    segment
+S/PP_old        0.914630
+has_old_model   1.000000\n\nOLD MODEL METRICS (when available):\n                  value
+gini_old       0.469599
+S/PP_old       0.914630
+has_old_model  1.000000\n\nSEGMENT METRICS:\n\nAGE_GROUP:\n           prediction_new  target_B      gini  exposure(k)  prediction_A  gini_old      S/PP  S/PP_old    segment
 age_group                                                                                                        
 18-29            0.063542  0.041485  0.386463        0.458      0.064003  0.372213  0.652873  0.648166  age_group
 30-44            0.109682  0.113821  0.409524        0.615      0.109657  0.417979  1.037738  1.037973  age_group

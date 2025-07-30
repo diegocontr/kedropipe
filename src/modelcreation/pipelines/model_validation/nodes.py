@@ -1,117 +1,23 @@
 """Nodes for model validation pipeline."""
 
+import json
 import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import mlflow
 import mlflow.catboost
 
-from model_monitoring import (
-    AnalysisDataBuilder,
-    SegmentCustom,
-    calculate_statistics,
-)
 from model_monitoring.plotting import plot_segment_statistics, set_plot_theme
 
 
 logger = logging.getLogger(__name__)
 
-
-def create_feature_segments(validation_dataset: pd.DataFrame, parameters: Dict[str, Any]) -> list:
-    """Create segments for all feature columns based on configuration.
-    
-    Args:
-        validation_dataset: Validation dataset with features
-        parameters: Model validation parameters including feature_binning config
-        
-    Returns:
-        List of SegmentCustom objects for all features
-    """
-    segments = []
-    
-    # Get binning configuration
-    feature_binning = parameters.get('feature_binning', {})
-    default_bins = feature_binning.get('default_bins', 5)
-    
-    # Get feature columns (exclude target, prediction, weight columns)
-    exclude_cols = {
-        parameters.get('target_column', 'target_B'),
-        parameters.get('prediction_column', 'prediction_new'), 
-        parameters.get('weight_column', 'weight'),
-        parameters.get('old_model_column', 'prediction_A')
-    }
-    
-    # Add any prediction columns that might exist
-    prediction_cols = [col for col in validation_dataset.columns if col.startswith('prediction')]
-    exclude_cols.update(prediction_cols)
-    
-    # Get feature columns
-    feature_cols = [col for col in validation_dataset.columns 
-                   if col not in exclude_cols and validation_dataset[col].dtype in ['int64', 'float64']]
-    
-    logger.info(f"Creating segments for features: {feature_cols}")
-    
-    for feature in feature_cols:
-        # Get custom binning for this feature, or use default
-        feature_config = feature_binning.get(feature, {})
-        
-        # Check if custom bins and labels are provided
-        if 'bins' in feature_config and 'labels' in feature_config:
-            # Custom bins with labels
-            bins = feature_config['bins']
-            labels = feature_config['labels']
-            segment_name = f"{feature}_group"
-            
-            logger.info(f"Using custom binning for {feature}: bins={bins}, labels={labels}")
-            
-        elif 'bins' in feature_config and isinstance(feature_config['bins'], list):
-            # Custom bin edges without labels
-            bins = feature_config['bins']
-            labels = None  # Will be auto-generated
-            segment_name = f"{feature}_group"
-            
-            logger.info(f"Using custom bin edges for {feature}: bins={bins}")
-            
-        elif 'bins' in feature_config and isinstance(feature_config['bins'], int):
-            # Number of quantile bins
-            bins = feature_config['bins']
-            labels = None
-            segment_name = f"{feature}_level"
-            
-            logger.info(f"Using {bins} quantile bins for {feature}")
-            
-        else:
-            # Use default binning
-            bins = default_bins
-            labels = None
-            segment_name = f"{feature}_level"
-            
-            logger.info(f"Using default {bins} quantile bins for {feature}")
-        
-        # Create segment
-        if labels:
-            segment = SegmentCustom(
-                seg_col=feature,
-                seg_name=segment_name,
-                bins=bins,
-                bin_labels=labels
-            )
-        else:
-            segment = SegmentCustom(
-                seg_col=feature,
-                seg_name=segment_name, 
-                bins=bins
-            )
-            
-        segments.append(segment)
-    
-    logger.info(f"Created {len(segments)} feature segments")
-    return segments
 
 
 def load_model_from_mlflow(
@@ -127,8 +33,6 @@ def load_model_from_mlflow(
     Returns:
         Loaded model from MLflow
     """
-    import json
-    
     logger.info("Loading model from MLflow")
     
     # Parse model metrics to get MLflow run ID
@@ -257,177 +161,11 @@ def prepare_validation_data(
     return validation_data
 
 
-def calculate_validation_metrics(
-    validation_dataset: pd.DataFrame,
-    parameters: Dict[str, Any]
-) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
-    """Calculate validation metrics using the model monitoring framework.
-    
-    Args:
-        validation_dataset: Combined validation dataset
-        parameters: Validation parameters
-        
-    Returns:
-        Tuple of (overall_metrics, segmented_metrics)
-    """
-    logger.info("Calculating validation metrics")
-    
-    # Get column names from parameters
-    target_col = parameters.get('target_column', 'target_B')
-    pred_col = parameters.get('prediction_column', 'prediction_new')
-    weight_col = parameters.get('weight_column', 'weight')
-    
-    # Ensure columns exist
-    if target_col not in validation_dataset.columns:
-        available_targets = [col for col in validation_dataset.columns if col.startswith('target_')]
-        if available_targets:
-            target_col = available_targets[0]
-            logger.info(f"Using detected target column: {target_col}")
-        else:
-            raise ValueError(f"Target column not found. Available columns: {list(validation_dataset.columns)}")
-    
-    # Create temporary parquet file for AnalysisDataBuilder
-    with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as temp_file:
-        temp_path = temp_file.name
-        validation_dataset.to_parquet(temp_path)
-    
-    try:
-        # Initialize AnalysisDataBuilder
-        extra_cols = [weight_col, pred_col, target_col]
-        old_model_col = parameters.get('old_model_column')
-        if old_model_col and old_model_col in validation_dataset.columns:
-            extra_cols.append(old_model_col)
-            
-        analysis = AnalysisDataBuilder(
-            data=temp_path,
-            extra_cols=extra_cols
-        )
-        
-        # Define segments using the generic function
-        segments = create_feature_segments(validation_dataset, parameters)
-        
-        # Add segments to analysis
-        for segment in segments:
-            analysis.add_segment(segment)
-        
-        # Load and process data
-        analysis.load_data()
-        analysis.apply_treatments()
-        analysis.apply_segments()
-        
-        # Define statistics to calculate
-        func_dict = {
-            "aggregations": {
-                pred_col: ("weighted_mean", [pred_col, weight_col]),
-                target_col: ("observed_charge", [target_col, weight_col]),
-                "gini": ("gini", [target_col, pred_col, weight_col]),
-                "exposure(k)": (lambda df, e: df[e].sum() / 1000, [weight_col]),
-            },
-            "post_aggregations": {
-                "S/PP": ("division", [target_col, pred_col]),
-            },
-        }
-        
-        # Add old model metrics if available
-        if old_model_col and old_model_col in validation_dataset.columns:
-            func_dict["aggregations"][old_model_col] = ("weighted_mean", [old_model_col, weight_col])
-            func_dict["post_aggregations"]["S/PP_old"] = ("division", [target_col, old_model_col])
-            func_dict["aggregations"]["gini_old"] = ("gini", [target_col, old_model_col, weight_col])
-        
-        # Calculate statistics
-        dict_stats, agg_stats = calculate_statistics(
-            analysis, 
-            func_dict, 
-            bootstrap=parameters.get('bootstrap', False)
-        )
-        
-        logger.info("Validation metrics calculated successfully")
-        logger.info(f"Overall metrics: {agg_stats.to_dict()}")
-        logger.info(f"Segmented metrics for {len(dict_stats)} segments")
-        
-        # Convert Series to DataFrame for saving
-        agg_stats_df = agg_stats.to_frame(name='value')
-        
-        return agg_stats_df, dict_stats
-        
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-
-
-def compare_with_old_model(
-    validation_dataset: pd.DataFrame,
-    validation_metrics: pd.DataFrame,
-    segmented_metrics: Dict[str, pd.DataFrame],
-    parameters: Dict[str, Any]
-) -> Dict[str, Any]:
-    """Compare new model with old model if available.
-    
-    Args:
-        validation_dataset: Validation dataset
-        validation_metrics: Overall validation metrics
-        segmented_metrics: Segmented validation metrics
-        parameters: Validation parameters
-        
-    Returns:
-        Dictionary with comparison results
-    """
-    logger.info("Comparing models")
-    
-    old_model_col = parameters.get('old_model_column')
-    comparison_results = {
-        'has_old_model': old_model_col is not None and old_model_col in validation_dataset.columns,
-        'comparison_summary': {}
-    }
-    
-    if comparison_results['has_old_model']:
-        logger.info(f"Comparing with old model column: {old_model_col}")
-        
-        # Overall comparison
-        if 'S/PP' in validation_metrics.index and 'S/PP_old' in validation_metrics.index:
-            spp_new = validation_metrics.loc['S/PP'].iloc[0]
-            spp_old = validation_metrics.loc['S/PP_old'].iloc[0]
-            comparison_results['comparison_summary']['S/PP_improvement'] = spp_new - spp_old
-            
-        if 'gini' in validation_metrics.index and 'gini_old' in validation_metrics.index:
-            gini_new = validation_metrics.loc['gini'].iloc[0]
-            gini_old = validation_metrics.loc['gini_old'].iloc[0]
-            comparison_results['comparison_summary']['gini_improvement'] = gini_new - gini_old
-        
-        # Segment-wise comparison
-        segment_comparisons = {}
-        for segment_name, segment_data in segmented_metrics.items():
-            if 'S/PP' in segment_data.columns and 'S/PP_old' in segment_data.columns:
-                # Convert to dict and ensure keys are JSON serializable
-                spp_diff = (segment_data['S/PP'] - segment_data['S/PP_old']).to_dict()
-                spp_diff = {str(k): float(v) for k, v in spp_diff.items()}
-                segment_comparisons[segment_name] = {
-                    'S/PP_improvement': spp_diff,
-                }
-            if 'gini' in segment_data.columns and 'gini_old' in segment_data.columns:
-                if segment_name not in segment_comparisons:
-                    segment_comparisons[segment_name] = {}
-                # Convert to dict and ensure keys are JSON serializable
-                gini_diff = (segment_data['gini'] - segment_data['gini_old']).to_dict()
-                gini_diff = {str(k): float(v) for k, v in gini_diff.items()}
-                segment_comparisons[segment_name]['gini_improvement'] = gini_diff
-        
-        comparison_results['segment_comparisons'] = segment_comparisons
-        
-        logger.info("Model comparison completed")
-        logger.info(f"Overall improvements: {comparison_results['comparison_summary']}")
-    else:
-        logger.info("No old model available for comparison")
-    
-    return comparison_results
-
 
 def generate_validation_reports(
     validation_dataset: pd.DataFrame,
     validation_metrics: pd.DataFrame, 
     segmented_metrics: Dict[str, pd.DataFrame],
-    model_comparison_results: Dict[str, Any],
     model_metrics: str,
     parameters: Dict[str, Any]
 ) -> Dict[str, str]:
@@ -435,20 +173,19 @@ def generate_validation_reports(
     
     Args:
         validation_dataset: Validation dataset
-        validation_metrics: Overall metrics
+        validation_metrics: Overall metrics (includes has_old_model flag)
         segmented_metrics: Segmented metrics  
-        model_comparison_results: Model comparison results
         model_metrics: JSON string containing model metrics with MLflow run ID
         parameters: Validation parameters
         
     Returns:
         Dictionary with paths to generated reports
     """
-    import json
-    import tempfile
-    import matplotlib.pyplot as plt
-    
     logger.info("Generating validation reports with MLflow artifacts")
+    
+    # Get old model availability from metrics
+    has_old_model = bool(validation_metrics.loc['has_old_model'].iloc[0]) if 'has_old_model' in validation_metrics.index else False
+    old_model_col = parameters.get('old_model_column') if has_old_model else None
     
     # Get MLflow run ID for artifact logging
     use_mlflow = parameters.get('use_mlflow', True)
@@ -479,14 +216,13 @@ def generate_validation_reports(
     
     target_col = parameters.get('target_column', 'target_B')
     pred_col = parameters.get('prediction_column', 'prediction_new')
-    old_model_col = parameters.get('old_model_column')
     
     # Define report panels - multiple curves in same plots
     report_panels = [
         {
             "title": "Prediction vs. Target",
             "type": "pred_vs_target",
-            "pred_col": [pred_col] + ([old_model_col] if model_comparison_results['has_old_model'] else []),
+            "pred_col": [pred_col] + ([old_model_col] if has_old_model else []),
             "target_col": target_col,
             "plot_type": "line",
             "show_mean_line": "all",
@@ -494,7 +230,7 @@ def generate_validation_reports(
         {
             "title": "S/PP (Observed/Predicted Ratio)",
             "type": "spp", 
-            "spp_col": ["S/PP"] + (["S/PP_old"] if model_comparison_results['has_old_model'] else []),
+            "spp_col": ["S/PP"] + (["S/PP_old"] if has_old_model else []),
             "plot_type": "line",
             "show_mean_line": False,
         },
@@ -508,7 +244,7 @@ def generate_validation_reports(
     ]
     
     # Add Gini as twin plot on the same axis as Exposure
-    if model_comparison_results['has_old_model']:
+    if has_old_model:
         report_panels.append({
             "title": "Exposure and Gini",  # Same title to make it a twin plot
             "type": "metric",
@@ -598,11 +334,13 @@ def generate_validation_reports(
         f.write(validation_metrics.to_string())
         f.write("\\n\\n")
         
-        if model_comparison_results['has_old_model']:
-            f.write("MODEL COMPARISON:\\n")
-            for metric, value in model_comparison_results['comparison_summary'].items():
-                f.write(f"{metric}: {value:.4f}\\n")
-            f.write("\\n")
+        if has_old_model:
+            f.write("OLD MODEL METRICS (when available):\\n")
+            # Show old model specific metrics from validation_metrics
+            old_metrics = validation_metrics[validation_metrics.index.str.contains('_old', na=False)]
+            if not old_metrics.empty:
+                f.write(old_metrics.to_string())
+                f.write("\\n\\n")
         
         f.write("SEGMENT METRICS:\\n")
         for segment_name, stats_df in segmented_metrics.items():
