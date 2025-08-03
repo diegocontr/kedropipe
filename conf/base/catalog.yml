@@ -68,3 +68,8 @@ model_comparison_results:
 validation_report_paths:
   type: json.JSONDataset
   filepath: data/reporting/validation_report_paths.json
+
+# PDP analysis outputs
+pdp_plots:
+  type: pickle.PickleDataset
+  filepath: data/processed/pdp_plots.pkl

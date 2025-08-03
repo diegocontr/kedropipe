@@ -19,6 +19,10 @@ model_training:
   depth: 6
   early_stopping_rounds: 100
   verbose: 100
+  
+  # MLflow experiment configuration
+  mlflow_experiment_id: null  # Set to specific experiment ID, or null to create time-based experiment
+  mlflow_experiment_name: null  # Custom experiment name, or null to use time-based name
 
 # Model validation parameters
 model_validation:

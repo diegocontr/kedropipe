@@ -5,7 +5,8 @@ specifically designed for count/regression tasks.
 """
 
 import logging
-from typing import Dict, Tuple
+from datetime import datetime
+from typing import Any, Dict, Tuple
 
 import pandas as pd
 from catboost import CatBoostRegressor
@@ -15,6 +16,59 @@ import mlflow
 import mlflow.catboost
 
 logger = logging.getLogger(__name__)
+
+
+def setup_mlflow_experiment(params: Dict[str, Any]) -> str:
+    """Setup MLflow experiment based on parameters.
+    
+    Args:
+        params: Model training parameters containing MLflow configuration
+        
+    Returns:
+        Experiment ID as string
+    """
+    experiment_id = params.get("mlflow_experiment_id")
+    experiment_name = params.get("mlflow_experiment_name")
+    
+    if experiment_id is not None:
+        # Use provided experiment ID
+        try:
+            experiment = mlflow.get_experiment(experiment_id)
+            if experiment is None:
+                raise ValueError(f"Experiment with ID {experiment_id} does not exist")
+            logger.info(f"Using existing experiment: ID={experiment_id}, Name={experiment.name}")
+            mlflow.set_experiment(experiment_id=experiment_id)
+            return str(experiment_id)
+        except Exception as e:
+            logger.warning(f"Failed to use experiment ID {experiment_id}: {e}")
+            # Fall through to create new experiment
+    
+    # Create new experiment with time-based name if no valid experiment_id
+    if experiment_name is None:
+        # Generate time-based experiment name
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        experiment_name = f"kedropipe_experiment_{timestamp}"
+    
+    try:
+        # Try to get existing experiment by name
+        experiment = mlflow.get_experiment_by_name(experiment_name)
+        if experiment is not None:
+            experiment_id = experiment.experiment_id
+            logger.info(f"Using existing experiment: ID={experiment_id}, Name={experiment_name}")
+        else:
+            # Create new experiment
+            experiment_id = mlflow.create_experiment(experiment_name)
+            logger.info(f"Created new experiment: ID={experiment_id}, Name={experiment_name}")
+        
+        mlflow.set_experiment(experiment_id=experiment_id)
+        return str(experiment_id)
+        
+    except Exception as e:
+        logger.error(f"Failed to setup MLflow experiment: {e}")
+        # Use default experiment as fallback
+        logger.warning("Falling back to default experiment (ID=0)")
+        mlflow.set_experiment(experiment_id="0")
+        return "0"
 
 
 def split_data(
@@ -128,6 +182,10 @@ def train_catboost_model(
     logger.info(f"  Learning rate: {learning_rate}")
     logger.info(f"  Depth: {depth}")
     logger.info(f"  Early stopping rounds: {early_stopping_rounds}")
+    
+    # Setup MLflow experiment
+    experiment_id = setup_mlflow_experiment(params)
+    logger.info(f"Using MLflow experiment ID: {experiment_id}")
     
     # Start MLflow run
     with mlflow.start_run(run_name="catboost_training"):

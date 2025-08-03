@@ -8,6 +8,7 @@ from .nodes import (
     generate_validation_reports
 )
 from .nodes_by_feature import calculate_validation_metrics
+from .nodes_pdp import generate_pdp_analysis
 
 
 def create_pipeline(**kwargs) -> Pipeline:
@@ -58,6 +59,18 @@ def create_pipeline(**kwargs) -> Pipeline:
                 ],
                 outputs="validation_report_paths",
                 name="generate_reports_node",
+            ),
+            node(
+                func=generate_pdp_analysis,
+                inputs=[
+                    "trained_model",
+                    "model_metrics",
+                    "validation_dataset",
+                    "segmented_metrics",
+                    "params:model_validation"
+                ],
+                outputs="pdp_plots",
+                name="generate_pdp_node",
             ),
         ]
     )

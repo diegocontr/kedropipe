@@ -1,10 +1,10 @@
 {
-  "plot_age_group": "mlflow_artifact:ff19879157d0414990dea7d3402db201/validation_plots/validation_report_age_group.png",
-  "plot_income_level": "mlflow_artifact:ff19879157d0414990dea7d3402db201/validation_plots/validation_report_income_level.png",
-  "plot_credit_score_group": "mlflow_artifact:ff19879157d0414990dea7d3402db201/validation_plots/validation_report_credit_score_group.png",
-  "global_distribution": "mlflow_artifact:ff19879157d0414990dea7d3402db201/global_analysis_plots/global_distribution.png",
-  "global_calibration_0": "mlflow_artifact:ff19879157d0414990dea7d3402db201/global_analysis_plots/global_calibration_0.png",
-  "global_calibration_1": "mlflow_artifact:ff19879157d0414990dea7d3402db201/global_analysis_plots/global_calibration_1.png",
-  "global_roc": "mlflow_artifact:ff19879157d0414990dea7d3402db201/global_analysis_plots/global_roc.png",
+  "plot_age_group": "mlflow_artifact:68ae783449f24b95b74128596c41c1d3/validation_plots/validation_report_age_group.png",
+  "plot_income_level": "mlflow_artifact:68ae783449f24b95b74128596c41c1d3/validation_plots/validation_report_income_level.png",
+  "plot_credit_score_group": "mlflow_artifact:68ae783449f24b95b74128596c41c1d3/validation_plots/validation_report_credit_score_group.png",
+  "global_distribution": "mlflow_artifact:68ae783449f24b95b74128596c41c1d3/global_analysis_plots/global_distribution.png",
+  "global_calibration_0": "mlflow_artifact:68ae783449f24b95b74128596c41c1d3/global_analysis_plots/global_calibration_0.png",
+  "global_calibration_1": "mlflow_artifact:68ae783449f24b95b74128596c41c1d3/global_analysis_plots/global_calibration_1.png",
+  "global_roc": "mlflow_artifact:68ae783449f24b95b74128596c41c1d3/global_analysis_plots/global_roc.png",
   "summary": "data/reporting/validation_summary.txt"
 }

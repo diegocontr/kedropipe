@@ -250,14 +250,22 @@ def _generate_segment_reports(
     old_model_col = parameters.get('old_model_column') if has_old_model else None
     
     # Define report panels - multiple curves in same plots
+    # Check which prediction columns actually exist in the stats data
+    available_pred_cols = []
+    if pred_col in next(iter(segmented_metrics.values())).columns:
+        available_pred_cols.append(pred_col)
+    if has_old_model and old_model_col in next(iter(segmented_metrics.values())).columns:
+        available_pred_cols.append(old_model_col)
+    
     report_panels = [
         {
             "title": "Prediction vs. Target",
             "type": "pred_vs_target",
-            "pred_col": [pred_col] + ([old_model_col] if has_old_model else []),
+            "pred_col": available_pred_cols,
             "target_col": target_col,
             "plot_type": "line",
-            "show_mean_line": "all",
+            "show_mean_line": "first",  # Changed from "all" to "first"
+            "colors": ["#FF6B6B", "#4ECDC4"] if len(available_pred_cols) >= 2 else ["#FF6B6B"],  # Red for new, teal for old
         },
         {
             "title": "S/PP (Observed/Predicted Ratio)",
@@ -407,6 +415,40 @@ def _generate_summary_file(
             f.write("\\n")
     
     generated_files['summary'] = str(summary_path)
+
+
+def _generate_pdp_reports(
+    pdp_plots: Dict[str, plt.Figure],
+    run_id: str,
+    use_mlflow: bool,
+    report_dir: Path,
+    generated_files: Dict[str, str]
+) -> None:
+    """Generate PDP reports.
+    
+    Args:
+        pdp_plots: PDP figures
+        run_id: MLflow run ID
+        use_mlflow: Whether to use MLflow
+        report_dir: Local report directory
+        generated_files: Dictionary to store file paths
+    """
+    try:
+        logger.info("Generating PDP analysis plots")
+        
+        for plot_name, fig in pdp_plots.items():
+            _save_plot_as_artifact(
+                fig=fig,
+                plot_name=plot_name,
+                run_id=run_id,
+                use_mlflow=use_mlflow,
+                artifact_dir="pdp_analysis_plots",
+                report_dir=report_dir,
+                generated_files=generated_files
+            )
+                
+    except Exception as e:
+        logger.error(f"Error generating PDP analysis plots: {e!s}")
 
 
 def generate_validation_reports(
