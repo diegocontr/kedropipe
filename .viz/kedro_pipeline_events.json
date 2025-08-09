@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-08-03T12:25:51.263627+00:00"
+    "timestamp": "2025-08-09T00:24:19.941288+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.018225841005914845,
+    "duration": 0.01908665600058157,
     "status": "success"
   },
   {
@@ -56,7 +56,7 @@
     "event": "after_node_run",
     "node": "split_data_node",
     "node_id": "2b3b62ea",
-    "duration": 0.024112557992339134,
+    "duration": 0.019853609999699984,
     "status": "success"
   },
   {
@@ -133,7 +133,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 2.706850905000465,
+    "duration": 3.0495610799989663,
     "status": "success"
   },
   {
@@ -152,10 +152,44 @@
   },
   {
     "event": "after_dataset_loaded",
-    "dataset": "trained_model",
-    "node_id": "8c812b47",
+    "dataset": "validation_dataset",
+    "node_id": "268c322d",
     "status": "Available",
-    "size": 80008
+    "size": 78848
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.target_column",
+    "node_id": "c689343a",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.prediction_column",
+    "node_id": "2e831ab7",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.roc_threshold",
+    "node_id": "54ba415d",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.calibration_bins",
+    "node_id": "3332e3e3",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.mlflow_run_id",
+    "node_id": "db8e266b",
+    "status": "Available"
   },
   {
     "event": "after_dataset_loaded",
@@ -165,210 +199,14 @@
     "size": 504
   },
   {
-    "event": "after_dataset_loaded",
-    "dataset": "X_test",
-    "node_id": "872981f9",
-    "status": "Available",
-    "size": 39180
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation",
-    "node_id": "30f7ff20",
-    "status": "Available",
-    "size": 0
-  },
-  {
     "event": "after_node_run",
-    "node": "generate_predictions_node",
-    "node_id": "e8d6c4cc",
-    "duration": 0.014813674002652988,
+    "node": "run_registered_analyses",
+    "node_id": "2ec16c49",
+    "duration": 0.5975850120012183,
     "status": "success"
-  },
-  {
-    "event": "after_dataset_saved",
-    "dataset": "model_predictions",
-    "node_id": "da94f8c5",
-    "status": "Available",
-    "size": 31000
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "X_test",
-    "node_id": "872981f9",
-    "status": "Available",
-    "size": 39180
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "y_test",
-    "node_id": "f6d9538c",
-    "status": "Available",
-    "size": 4009
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "model_predictions",
-    "node_id": "da94f8c5",
-    "status": "Available",
-    "size": 31000
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation",
-    "node_id": "30f7ff20",
-    "status": "Available",
-    "size": 0
-  },
-  {
-    "event": "after_node_run",
-    "node": "prepare_validation_data_node",
-    "node_id": "f41d334e",
-    "duration": 0.015158153997617774,
-    "status": "success"
-  },
-  {
-    "event": "after_dataset_saved",
-    "dataset": "validation_dataset",
-    "node_id": "268c322d",
-    "status": "Available",
-    "size": 78848
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "validation_dataset",
-    "node_id": "268c322d",
-    "status": "Available",
-    "size": 78848
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation",
-    "node_id": "30f7ff20",
-    "status": "Available",
-    "size": 0
-  },
-  {
-    "event": "after_node_run",
-    "node": "calculate_metrics_node",
-    "node_id": "44d4147d",
-    "duration": 0.13123202898714226,
-    "status": "success"
-  },
-  {
-    "event": "after_dataset_saved",
-    "dataset": "validation_metrics",
-    "node_id": "e4215652",
-    "status": "Available",
-    "size": 2201
-  },
-  {
-    "event": "after_dataset_saved",
-    "dataset": "segmented_metrics",
-    "node_id": "aad60776",
-    "status": "Available",
-    "size": 3025
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "trained_model",
-    "node_id": "8c812b47",
-    "status": "Available",
-    "size": 80008
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "model_metrics",
-    "node_id": "9157662c",
-    "status": "Available",
-    "size": 504
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "validation_dataset",
-    "node_id": "268c322d",
-    "status": "Available",
-    "size": 78848
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "segmented_metrics",
-    "node_id": "aad60776",
-    "status": "Available",
-    "size": 3025
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation",
-    "node_id": "30f7ff20",
-    "status": "Available",
-    "size": 0
-  },
-  {
-    "event": "after_node_run",
-    "node": "generate_pdp_node",
-    "node_id": "9d5fdfa3",
-    "duration": 1.6076316300022881,
-    "status": "success"
-  },
-  {
-    "event": "after_dataset_saved",
-    "dataset": "pdp_plots",
-    "node_id": "3ce0ddee",
-    "status": "Available",
-    "size": 410874
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "validation_dataset",
-    "node_id": "268c322d",
-    "status": "Available",
-    "size": 78848
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "validation_metrics",
-    "node_id": "e4215652",
-    "status": "Available",
-    "size": 2201
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "segmented_metrics",
-    "node_id": "aad60776",
-    "status": "Available",
-    "size": 3025
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "model_metrics",
-    "node_id": "9157662c",
-    "status": "Available",
-    "size": 504
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation",
-    "node_id": "30f7ff20",
-    "status": "Available",
-    "size": 0
-  },
-  {
-    "event": "after_node_run",
-    "node": "generate_reports_node",
-    "node_id": "c028e152",
-    "duration": 4.826637310005026,
-    "status": "success"
-  },
-  {
-    "event": "after_dataset_saved",
-    "dataset": "validation_report_paths",
-    "node_id": "7aad6f1b",
-    "status": "Available",
-    "size": 921
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-08-03T12:26:01.069740+00:00"
+    "timestamp": "2025-08-09T00:24:23.850308+00:00"
   }
 ]

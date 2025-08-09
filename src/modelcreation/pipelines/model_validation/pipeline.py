@@ -1,76 +1,28 @@
-"""Model validation pipeline for analyzing model performance and comparison."""
-
 from kedro.pipeline import Pipeline, node
 
-from .nodes import (
-    generate_model_predictions,
-    prepare_validation_data,
-    generate_validation_reports
-)
-from .nodes_by_feature import calculate_validation_metrics
-from .nodes_pdp import generate_pdp_analysis
+# isort: off
+try:
+    from modelcreation.pipelines.model_validation.nodes import run_registered_analyses  # type: ignore
+except Exception:  # pragma: no cover
+    from .nodes import run_registered_analyses  # type: ignore
+# isort: on
 
-
-def create_pipeline(**kwargs) -> Pipeline:
-    """Create the model validation pipeline.
-    
-    This pipeline performs comprehensive model validation including:
-    - Model predictions generation
-    - Statistical analysis (S/PP ratios, Gini coefficients, etc.)
-    - Comparison with optional old model
-    - Visualization reports generation
-    
-    Returns:
-        A kedro ``Pipeline`` object.
-    """
+def create_pipeline(**kwargs):
     return Pipeline(
         [
             node(
-                func=generate_model_predictions,
-                inputs=["trained_model", "model_metrics", "X_test", "params:model_validation"],
-                outputs="model_predictions",
-                name="generate_predictions_node",
-            ),
-            node(
-                func=prepare_validation_data,
-                inputs=[
-                    "X_test", 
-                    "y_test", 
-                    "model_predictions", 
-                    "params:model_validation"
-                ],
-                outputs="validation_dataset",
-                name="prepare_validation_data_node",
-            ),
-            node(
-                func=calculate_validation_metrics,
-                inputs=["validation_dataset", "params:model_validation"],
-                outputs=["validation_metrics", "segmented_metrics"],
-                name="calculate_metrics_node",
-            ),
-            node(
-                func=generate_validation_reports,
-                inputs=[
-                    "validation_dataset",
-                    "validation_metrics", 
-                    "segmented_metrics",
-                    "model_metrics",
-                    "params:model_validation"
-                ],
-                outputs="validation_report_paths",
-                name="generate_reports_node",
-            ),
-            node(
-                func=generate_pdp_analysis,
-                inputs=[
-                    "trained_model",
-                    "model_metrics",
-                    "validation_dataset",
-                    "segmented_metrics",
-                    "params:model_validation"
-                ],
-                outputs="pdp_plots",
-                name="generate_pdp_node",
+                func=run_registered_analyses,
+                inputs={
+                    "validation_dataset": "validation_dataset",
+                    "target_column": "params:model_validation.target_column",
+                    "prediction_column": "params:model_validation.prediction_column",
+                    "roc_threshold": "params:model_validation.roc_threshold",
+                    "n_bins": "params:model_validation.calibration_bins",
+                    "run_id": "params:model_validation.mlflow_run_id",
+                    "model_metrics": "model_metrics",
+                },
+                outputs=None,
+                name="run_registered_analyses",
             ),
         ]
     )

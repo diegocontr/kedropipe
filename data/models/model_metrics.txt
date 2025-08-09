@@ -9,7 +9,7 @@
     "income": 35.97043896648146,
     "credit_score": 16.705439846063783
   },
-  "mlflow_run_id": "68ae783449f24b95b74128596c41c1d3",
+  "mlflow_run_id": "9fe435d38de74ea9bcdd7670d84b8ba5",
   "model_params": {
     "loss_function": "Poisson",
     "iterations": 1000,

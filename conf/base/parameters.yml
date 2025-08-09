@@ -55,6 +55,9 @@ model_validation:
   # Analysis settings
   bootstrap: false  # Whether to use bootstrap for confidence intervals
   old_model_noise_factor: 0.1  # Noise factor for synthetic old model generation
+  calibration_bins: 10  # Number of percentile bins for calibration plot
+  roc_threshold: 0.0    # Threshold to binarize counts for ROC (event = target > threshold)
+  mlflow_run_id: null   # Optional: existing MLflow run_id to log artifacts into
   
   # Reporting settings
   plot_theme:
