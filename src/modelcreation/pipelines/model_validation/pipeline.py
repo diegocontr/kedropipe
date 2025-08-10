@@ -2,27 +2,53 @@ from kedro.pipeline import Pipeline, node
 
 # isort: off
 try:
-    from modelcreation.pipelines.model_validation.nodes import run_registered_analyses  # type: ignore
+    from modelcreation.pipelines.model_validation.nodes import run_global_analyses, generate_predictions  # type: ignore
 except Exception:  # pragma: no cover
-    from .nodes import run_registered_analyses  # type: ignore
+    from .nodes import run_global_analyses, generate_predictions  # type: ignore
 # isort: on
+
+
+def resolve_mlflow_run_id(run_id: str | None) -> str:
+    return run_id or ""
+
 
 def create_pipeline(**kwargs):
     return Pipeline(
         [
             node(
-                func=run_registered_analyses,
+                func=resolve_mlflow_run_id,
+                inputs="params:model_validation.mlflow_run_id",
+                outputs="resolved_mlflow_run_id",
+                name="resolve_mlflow_run_id",
+                tags=["memory_only"],
+            ),
+            node(
+                func=generate_predictions,
                 inputs={
-                    "validation_dataset": "validation_dataset",
+                    "trained_model": "trained_model",
+                    "test_dataset": "test_dataset",
+                    "train_dataset": "train_dataset",
+                    "prediction_column": "params:model_validation.prediction_column",
+                    "old_model_column": "params:model_validation.old_model_column",
+                    "old_model_noise_factor": "params:model_validation.old_model_noise_factor",
+                    "random_state": "params:model_training.random_state",
+                },
+                outputs=["train_dataset_with_preds", "test_dataset_with_preds"],
+                name="generate_predictions",
+            ),
+            node(
+                func=run_global_analyses,
+                inputs={
+                    "test_dataset": "test_dataset_with_preds",
+                    "train_dataset": "train_dataset_with_preds",
                     "target_column": "params:model_validation.target_column",
                     "prediction_column": "params:model_validation.prediction_column",
-                    "roc_threshold": "params:model_validation.roc_threshold",
-                    "n_bins": "params:model_validation.calibration_bins",
-                    "run_id": "params:model_validation.mlflow_run_id",
+                    "run_id": "resolved_mlflow_run_id",
                     "model_metrics": "model_metrics",
+                    "model_validation_params": "params:model_validation",
                 },
                 outputs=None,
-                name="run_registered_analyses",
+                name="run_global_analyses",
             ),
         ]
     )

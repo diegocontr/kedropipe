@@ -18,19 +18,23 @@ class ModelAnalysis:
         - tables: a dict-like structure suitable for JSON serialization
     """
 
-    def __init__(self, func, analysis_name: str):
+    def __init__(self, func, analysis_name: str, config: Optional[Dict[str, Any]] = None):
         """Initialize the analysis wrapper.
 
         Parameters:
             func: Callable implementing the analysis, returning (figures, tables).
             analysis_name: A human-friendly name for this analysis.
+            config: Optional dict of configuration parameters (thresholds, bin counts, etc.)
+                    that influence the analysis but are not necessarily passed as direct
+                    function args. Persisted in self.config and can be added to tables.
         """
         self.analysis_name = analysis_name
         self.func = func
+        self.config: Dict[str, Any] = config or {}
         # artifacts[name] = {"figures": dict[str, Figure], "tables": dict[str, Any]}
         self.artifacts: Dict[str, Dict[str, Any]] = {}
 
-    def run_analysis(self, name: str, **kwargs: Any) -> None:
+    def run_analysis(self, name: str, include_config: bool = True, **kwargs: Any) -> None:
         figures, tables = self.func(**kwargs)
 
         # Normalize figures to a dict[str, Figure]
@@ -46,6 +50,9 @@ class ModelAnalysis:
             )
 
         table_dict = tables or {}
+        if include_config and self.config:
+            # Attach config under a reserved key to avoid collision
+            table_dict = {"_config": self.config, **table_dict}
 
         self.artifacts[name] = {"figures": fig_dict, "tables": table_dict}
 
@@ -65,42 +72,32 @@ class ModelAnalysis:
 
         # Determine run context
         active = mlflow.active_run()
-        # Only close the run if we created a brand-new anonymous run.
         need_close = False
 
         if identifier_run:
-            # Ensure the desired run is active; do not end it here.
             if not active or active.info.run_id != identifier_run:
                 mlflow.start_run(run_id=identifier_run)
             need_close = False
         elif not active:
-            # No run provided and none active: create a temporary run we'll close.
             mlflow.start_run()
             need_close = True
 
         try:
-            # For each named analysis (e.g., train_set, test_set)
             for name, payload in self.artifacts.items():
                 sub_path = f"{artifact_root}/{name}"
-
-                # Save figures to temporary PNGs and log
                 figures = payload.get("figures", {})
                 for fig_key, fig in figures.items():
                     filename = f"{self.analysis_name.lower().replace(' ', '_')}_{name}_{fig_key}.png"
-                    # Use a deterministic local path in the current working dir
                     local_path = Path.cwd() / filename
                     try:
                         fig.savefig(local_path, bbox_inches="tight")
                         mlflow.log_artifact(str(local_path), artifact_path=sub_path)
                     finally:
-                        # Best-effort cleanup
                         if local_path.exists():
                             try:
                                 os.remove(local_path)
                             except OSError:
                                 pass
-
-                # Save tables as JSON and log
                 tables = payload.get("tables", {})
                 table_file = (
                     f"{self.analysis_name.lower().replace(' ', '_')}_{name}_tables.json"

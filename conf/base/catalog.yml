@@ -73,3 +73,22 @@ validation_report_paths:
 pdp_plots:
   type: pickle.PickleDataset
   filepath: data/processed/pdp_plots.pkl
+
+# Added unified datasets for model validation analyses
+train_dataset:
+  type: pandas.ParquetDataset
+  filepath: data/processed/train_dataset.parquet
+
+test_dataset:
+  type: pandas.ParquetDataset
+  filepath: data/processed/test_dataset.parquet
+
+# Memory datasets for model validation pipeline
+resolved_mlflow_run_id:
+  type: MemoryDataset
+
+train_dataset_with_preds:
+  type: MemoryDataset
+
+test_dataset_with_preds:
+  type: MemoryDataset

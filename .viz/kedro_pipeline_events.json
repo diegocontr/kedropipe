@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-08-09T00:24:19.941288+00:00"
+    "timestamp": "2025-08-10T21:58:41.633211+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.01908665600058157,
+    "duration": 0.029003395000472665,
     "status": "success"
   },
   {
@@ -40,6 +40,26 @@
   },
   {
     "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.mlflow_run_id",
+    "node_id": "db8e266b",
+    "status": "Available"
+  },
+  {
+    "event": "after_node_run",
+    "node": "resolve_mlflow_run_id",
+    "node_id": "4c24a77d",
+    "duration": 0.001269870001124218,
+    "status": "success"
+  },
+  {
+    "event": "after_dataset_saved",
+    "dataset": "resolved_mlflow_run_id",
+    "node_id": "c57679c2",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
     "dataset": "prepared_model_data",
     "node_id": "69ae005c",
     "status": "Available",
@@ -54,9 +74,51 @@
   },
   {
     "event": "after_node_run",
-    "node": "split_data_node",
-    "node_id": "2b3b62ea",
-    "duration": 0.019853609999699984,
+    "node": "split_full_data_node",
+    "node_id": "082bffa9",
+    "duration": 0.007402439005090855,
+    "status": "success"
+  },
+  {
+    "event": "after_dataset_saved",
+    "dataset": "train_dataset",
+    "node_id": "68b45ccd",
+    "status": "Available",
+    "size": 146372
+  },
+  {
+    "event": "after_dataset_saved",
+    "dataset": "test_dataset",
+    "node_id": "c07abfbb",
+    "status": "Available",
+    "size": 40297
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "train_dataset",
+    "node_id": "68b45ccd",
+    "status": "Available",
+    "size": 146372
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "test_dataset",
+    "node_id": "c07abfbb",
+    "status": "Available",
+    "size": 40297
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:data_preparation.target_column",
+    "node_id": "cafe0512",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_node_run",
+    "node": "separate_features_target_node",
+    "node_id": "c25076b5",
+    "duration": 0.012609159995918162,
     "status": "success"
   },
   {
@@ -133,7 +195,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 3.0495610799989663,
+    "duration": 2.909082638005202,
     "status": "success"
   },
   {
@@ -152,10 +214,87 @@
   },
   {
     "event": "after_dataset_loaded",
-    "dataset": "validation_dataset",
-    "node_id": "268c322d",
+    "dataset": "trained_model",
+    "node_id": "8c812b47",
     "status": "Available",
-    "size": 78848
+    "size": 80008
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "test_dataset",
+    "node_id": "c07abfbb",
+    "status": "Available",
+    "size": 40297
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "train_dataset",
+    "node_id": "68b45ccd",
+    "status": "Available",
+    "size": 146372
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.prediction_column",
+    "node_id": "2e831ab7",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.old_model_column",
+    "node_id": "5e681149",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.old_model_noise_factor",
+    "node_id": "51921802",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_training.random_state",
+    "node_id": "66b64fe7",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_node_run",
+    "node": "generate_predictions",
+    "node_id": "e1312146",
+    "duration": 0.01176112900429871,
+    "status": "success"
+  },
+  {
+    "event": "after_dataset_saved",
+    "dataset": "train_dataset_with_preds",
+    "node_id": "ba9bb4e2",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_saved",
+    "dataset": "test_dataset_with_preds",
+    "node_id": "a066a1e5",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "test_dataset_with_preds",
+    "node_id": "a066a1e5",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "train_dataset_with_preds",
+    "node_id": "ba9bb4e2",
+    "status": "Available",
+    "size": 0
   },
   {
     "event": "after_dataset_loaded",
@@ -173,23 +312,10 @@
   },
   {
     "event": "after_dataset_loaded",
-    "dataset": "params:model_validation.roc_threshold",
-    "node_id": "54ba415d",
+    "dataset": "resolved_mlflow_run_id",
+    "node_id": "c57679c2",
     "status": "Available",
     "size": 0
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation.calibration_bins",
-    "node_id": "3332e3e3",
-    "status": "Available",
-    "size": 0
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation.mlflow_run_id",
-    "node_id": "db8e266b",
-    "status": "Available"
   },
   {
     "event": "after_dataset_loaded",
@@ -199,14 +325,21 @@
     "size": 504
   },
   {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation",
+    "node_id": "30f7ff20",
+    "status": "Available",
+    "size": 0
+  },
+  {
     "event": "after_node_run",
-    "node": "run_registered_analyses",
-    "node_id": "2ec16c49",
-    "duration": 0.5975850120012183,
+    "node": "run_global_analyses",
+    "node_id": "8c9cbbd0",
+    "duration": 1.0992311949958093,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-08-09T00:24:23.850308+00:00"
+    "timestamp": "2025-08-10T21:58:45.991882+00:00"
   }
 ]

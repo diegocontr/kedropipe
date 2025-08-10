@@ -72,58 +72,50 @@ def setup_mlflow_experiment(params: Dict[str, Any]) -> str:
 
 
 def split_data(
-    prepared_data: pd.DataFrame, 
-    params: Dict
-) -> Tuple[pd.DataFrame, pd.DataFrame, str, str]:
-    """Split prepared data into train and test sets.
-    
-    Args:
-        prepared_data: Prepared dataframe with features and target
-        params: Parameters from conf/base/parameters.yml containing:
-            - test_size: Fraction of data to use for testing
-            - random_state: Random seed for reproducibility
-        
-    Returns:
-        Tuple of:
-        - X_train: Training features
-        - X_test: Test features  
-        - y_train: Training target as CSV string
-        - y_test: Test target as CSV string
+    prepared_data: pd.DataFrame,
+    params: Dict,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split prepared full DataFrame into train/test full DataFrames.
+
+    Returns train_dataset, test_dataset (each including features + target column).
+    Target is assumed to be the last column (consistent with previous logic).
     """
-    logger.info("Starting data splitting for model training")
-    
-    # Get parameters
+    logger.info("Starting data splitting (full DataFrames) for model training")
     test_size = params.get("test_size", 0.2)
     random_state = params.get("random_state", 42)
-    
-    logger.info(f"Test size: {test_size}")
-    logger.info(f"Random state: {random_state}")
-    
-    # Get target column name (last column should be target)
-    target_col = prepared_data.columns[-1]
-    feature_cols = prepared_data.columns[:-1].tolist()
-    
-    logger.info(f"Target column: {target_col}")
-    logger.info(f"Feature columns: {feature_cols}")
-    
-    # Split features and target
-    X = prepared_data[feature_cols]
-    y = prepared_data[target_col]
-    
-    # Split into train and test
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state
+    train_df, test_df = train_test_split(
+        prepared_data, test_size=test_size, random_state=random_state
     )
-    
-    logger.info(f"Training set size: {len(X_train)}")
-    logger.info(f"Test set size: {len(X_test)}")
-    logger.info(f"Training target distribution: mean={y_train.mean():.3f}, std={y_train.std():.3f}")
-    logger.info(f"Test target distribution: mean={y_test.mean():.3f}, std={y_test.std():.3f}")
-    
-    # Convert target series to CSV string for text storage
+    logger.info("Full train rows=%d, test rows=%d", len(train_df), len(test_df))
+    return train_df, test_df
+
+
+def separate_features_target(
+    train_dataset: pd.DataFrame,
+    test_dataset: pd.DataFrame,
+    target_column: str,
+) -> Tuple[pd.DataFrame, pd.DataFrame, str, str]:
+    """Split full train/test DataFrames into feature matrices and target CSV strings.
+
+    Returns X_train, X_test, y_train_str, y_test_str (targets serialized as CSV text for existing downstream compatibility).
+    """
+    if target_column not in train_dataset.columns:
+        raise ValueError(f"target_column '{target_column}' not in train_dataset")
+    if target_column not in test_dataset.columns:
+        raise ValueError(f"target_column '{target_column}' not in test_dataset")
+
+    feature_cols = [c for c in train_dataset.columns if c != target_column]
+    X_train = train_dataset[feature_cols].copy()
+    X_test = test_dataset[feature_cols].copy()
+
+    y_train = train_dataset[target_column]
+    y_test = test_dataset[target_column]
+
     y_train_str = y_train.to_csv(index=False)
     y_test_str = y_test.to_csv(index=False)
-    
+    logger.info(
+        "Separated features/target: features=%d target=%s", len(feature_cols), target_column
+    )
     return X_train, X_test, y_train_str, y_test_str
 
 
@@ -290,3 +282,5 @@ def train_catboost_model(
         metrics_str = json.dumps(metrics, indent=2)
         
         return model, metrics_str
+
+
