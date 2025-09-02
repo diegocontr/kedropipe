@@ -491,6 +491,7 @@ def plot_segment_statistics(
     agg_stats: Optional[pd.Series] = None,
     figsize: Optional[tuple] = None,
     figure_layout: Optional[dict] = None,
+    show: bool = True,
 ):
     """Generates a custom panel-based plot for segment statistics.
 
@@ -504,6 +505,13 @@ def plot_segment_statistics(
         figure_layout (dict, optional): A dictionary to specify a custom subplot
                                         layout. Passed directly to `plt.subplots`.
                                         Example: `{'nrows': 2, 'ncols': 1, 'sharex': True}`.
+        show (bool, optional): Whether to display the figure via plt.show().
+                               Defaults to True. Set to False in pipelines to
+                               capture and save the figure programmatically.
+
+    Returns:
+        Optional[Tuple[plt.Figure, List]]: Returns (fig, axes) when panels are
+        configured. Returns None if no panels are configured.
     """
     if not isinstance(stats_df, pd.DataFrame):
         raise TypeError("stats_df must be a pandas DataFrame.")
@@ -563,4 +571,7 @@ def plot_segment_statistics(
         ax.set_xticklabels(x_labels, rotation=45, ha="right")
 
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    return fig
+    if show:
+        plt.show()
+
+    return fig, axes

@@ -9,53 +9,48 @@ def safe_division(numerator, denominator):
     return numerator / denominator if denominator != 0 else 0
 
 
-def df_weighted_mean(df, x, w, s=None):
+def df_weighted_mean(df, x, w, s):
     """This function calculates a weighted mean of 'x' using 'w' as weights and 's' as a special factor."""
     m = (df[x] < 9999).astype(int)
-    s_values = df[s] if s is not None else 1
-    numerator = (m * df[x] * df[w] * s_values).sum()
-    denominator = (m * df[w] * s_values).sum()
+    numerator = (m * df[x] * df[w] * df[s]).sum()
+    denominator = (m * df[w] * df[s]).sum()
     return safe_division(numerator, denominator)
 
 
-def df_observed_charge(df, x, w, s=None):
+def df_observed_charge(df, x, w, s):
     """This function calculates the sum of 'x' divided by the sum of 'w' multiplied by 's'."""
-    s_values = df[s] if s is not None else 1
     numerator = df[x].sum()
-    denominator = (df[w] * s_values).sum()
+    denominator = (df[w] * df[s]).sum()
     return safe_division(numerator, denominator)
 
 
-def df_mean_of_ratio(df, v1, v2, w, s=None):
+def df_mean_of_ratio(df, v1, v2, w, s):
     """Calculates the weighted mean of the ratio of two columns (v1 / v2)."""
     m1 = (df[v1] < 9999).astype(int)
     m2 = (df[v2] < 9999).astype(int)
-    s_values = df[s] if s is not None else 1
     ratio = df[v1] / df[v2]
-    numerator = (m1 * m2 * ratio * df[w] * s_values).sum()
-    denominator = (m1 * m2 * df[w] * s_values).sum()
+    numerator = (m1 * m2 * ratio * df[w] * df[s]).sum()
+    denominator = (m1 * m2 * df[w] * df[s]).sum()
     return safe_division(numerator, denominator)
 
 
-def df_mean_of_variation(df, v1, v2, w, s=None):
+def df_mean_of_variation(df, v1, v2, w, s):
     """Calculates the weighted mean of the variation of two columns (v1 - v2)."""
     m1 = (df[v1] < 9999).astype(int)
     m2 = (df[v2] < 9999).astype(int)
-    s_values = df[s] if s is not None else 1
     ratio = df[v1] / df[v2]
-    numerator = (m1 * m2 * (ratio - 1) * df[w] * s_values).sum()
-    denominator = (m1 * m2 * df[w] * s_values).sum()
+    numerator = (m1 * m2 * (ratio - 1) * df[w] * df[s]).sum()
+    denominator = (m1 * m2 * df[w] * df[s]).sum()
     return 100 * safe_division(numerator, denominator)
 
 
-def df_mean_of_difference(df, v1, v2, w, s=None):
+def df_mean_of_difference(df, v1, v2, w, s):
     """Calculates the weighted mean of the difference of two columns (v1 - v2)."""
     m1 = (df[v1] < 9999).astype(int)
     m2 = (df[v2] < 9999).astype(int)
-    s_values = df[s] if s is not None else 1
     difference = df[v1] - df[v2]
-    numerator = (m1 * m2 * difference * df[w] * s_values).sum()
-    denominator = (m1 * m2 * df[w] * s_values).sum()
+    numerator = (m1 * m2 * difference * df[w] * df[s]).sum()
+    denominator = (m1 * m2 * df[w] * df[s]).sum()
     return safe_division(numerator, denominator)
 
 
@@ -74,10 +69,9 @@ def df_lr(df, o, w, s, pc):
     return safe_division(numerator, denominator)  # / df_weighted_mean(df, pc, w, s)
 
 
-def df_gini(df, o, p, w, s = None):
+def df_gini(df, o, p, w, s):
     """This function calculates a Gini coefficient."""
-    s_values = df[s] if s is not None else 1
-    return gini(df[o], df[p], df[w] * s_values)
+    return gini(df[o], df[p], df[w] * df[s])
 
 
 AGG_FUNCTIONS = {
