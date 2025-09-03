@@ -100,51 +100,82 @@ class SegmentedAnalysesRunner(BaseAnalysis):
 
     def _build_segments(self) -> List[Any]:
         """Build segmentation strategies based on available columns and params."""
-        from model_monitoring import SegmentCategorical, SegmentCustom
+        from model_monitoring import SegmentCustom
 
         segments = []
+        
+        # Get feature columns from data preparation parameters
+        feature_columns = self.params.get("data_preparation", {}).get("feature_columns", [])
+        if not feature_columns:
+            # Fallback: infer feature columns from available columns
+            excluded_cols = {
+                self.target_column, 
+                self.prediction_column, 
+                self.old_model_column, 
+                self.weight_col, 
+                'weight'
+            }
+            feature_columns = [
+                col for col in self._train_cols 
+                if col not in excluded_cols and col in self._test_cols
+            ]
+        
+        # Get segment configurations from parameters
         segment_configs = self.params.get("segments", {})
-
-        # Age group segment
-        age_config = segment_configs.get("age_group", {})
-        if "age" in self._train_cols and "age" in self._test_cols:
-            segments.append(
-                SegmentCustom(
-                    seg_col="age",
-                    seg_name="age_group",
-                    bins=age_config.get("bins", [18, 30, 45, 60, 75]),
-                    bin_labels=age_config.get("bin_labels", ["18-29", "30-44", "45-59", "60+"]),
+        feature_binning = self.params.get("feature_binning", {})
+        default_bins = feature_binning.get("default_bins", 5)
+        
+        # Build segments from explicit segment configurations first
+        for segment_name, segment_config in segment_configs.items():
+            # Extract column name from segment name (remove suffix like _group, _level, etc.)
+            potential_col_names = [
+                segment_name,
+                segment_name.replace("_group", ""),
+                segment_name.replace("_level", ""),
+                segment_name.replace("_segment", ""),
+            ]
+            
+            # Find the actual column that exists in data
+            seg_col = None
+            for col_name in potential_col_names:
+                if col_name in self._train_cols and col_name in self._test_cols:
+                    seg_col = col_name
+                    break
+            
+            if seg_col:
+                bins = segment_config.get("bins", default_bins)
+                bin_labels = segment_config.get("bin_labels")
+                
+                segments.append(
+                    SegmentCustom(
+                        seg_col=seg_col,
+                        seg_name=segment_name,
+                        bins=bins,
+                        bin_labels=bin_labels,
+                    )
                 )
-            )
-
-        # Income level segment
-        income_config = segment_configs.get("income_level", {})
-        if "income" in self._train_cols and "income" in self._test_cols:
-            segments.append(
-                SegmentCustom(
-                    seg_col="income",
-                    seg_name="income_level",
-                    bins=income_config.get("bins", 5),
-                )
-            )
-
-        # Credit score segment
-        credit_config = segment_configs.get("credit_score_group", {})
-        if "credit_score" in self._train_cols and "credit_score" in self._test_cols:
-            segments.append(
-                SegmentCustom(
-                    seg_col="credit_score",
-                    seg_name="credit_score_group",
-                    bins=credit_config.get("bins", [300, 500, 650, 750, 850]),
-                    bin_labels=credit_config.get("bin_labels", ["Poor", "Fair", "Good", "Excellent"]),
-                )
-            )
-
-        # Region segment (categorical)
-        if "region" in self._train_cols and "region" in self._test_cols:
-            segments.append(
-                SegmentCategorical(seg_col="region", seg_name="region_segment")
-            )
+        
+        # If no explicit segments configured, create default segments for feature columns
+        if not segments:
+            for feature_col in feature_columns:
+                if feature_col in self._train_cols and feature_col in self._test_cols:
+                    # Check if there's specific binning configuration for this feature
+                    feature_config = feature_binning.get(feature_col, {})
+                    bins = feature_config.get("bins", default_bins)
+                    bin_labels = feature_config.get("labels")
+                    
+                    # Determine if column is categorical or numeric
+                    # For now, assume all feature columns are numeric and use SegmentCustom
+                    # You could add logic here to detect categorical columns and use SegmentCategorical
+                    
+                    segments.append(
+                        SegmentCustom(
+                            seg_col=feature_col,
+                            seg_name=f"{feature_col}_segment",
+                            bins=bins,
+                            bin_labels=bin_labels,
+                        )
+                    )
 
         return segments
 

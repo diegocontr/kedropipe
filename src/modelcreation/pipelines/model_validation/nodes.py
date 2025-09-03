@@ -42,6 +42,7 @@ def run_global_analyses(
     run_id: Optional[str] = None,
     model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
+    data_preparation_params: Optional[dict] = None,
 ) -> None:
     """Run global analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.global_analysis import build_and_run_global_analyses
@@ -49,13 +50,18 @@ def run_global_analyses(
     if old_model_column is None and model_validation_params:
         old_model_column = model_validation_params.get("old_model_column")
 
+    # Merge all available parameters for the analysis
+    merged_params = {**(model_validation_params or {})}
+    if data_preparation_params:
+        merged_params["data_preparation"] = data_preparation_params
+
     build_and_run_global_analyses(
         train_df_path=train_df_path,
         test_df_path=test_df_path,
         target_column=target_column,
         prediction_column=prediction_column,
         old_model_column=old_model_column,
-        params=model_validation_params,
+        params=merged_params,
         run_id=run_id,
         resolved_run_extractor=_extract_run_id,
         model_metrics=model_metrics,
@@ -72,6 +78,7 @@ def run_segmented_analyses(
     run_id: Optional[str] = None,
     model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
+    data_preparation_params: Optional[dict] = None,
 ) -> None:
     """Run segmented analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.segmented_analysis import build_and_run_segmented_analyses
@@ -79,13 +86,18 @@ def run_segmented_analyses(
     if old_model_column is None and model_validation_params:
         old_model_column = model_validation_params.get("old_model_column")
 
+    # Merge all available parameters for the analysis
+    merged_params = {**(model_validation_params or {})}
+    if data_preparation_params:
+        merged_params["data_preparation"] = data_preparation_params
+
     build_and_run_segmented_analyses(
         train_df_path=train_df_path,
         test_df_path=test_df_path,
         target_column=target_column,
         prediction_column=prediction_column,
         old_model_column=old_model_column,
-        params=model_validation_params,
+        params=merged_params,
         run_id=run_id,
         resolved_run_extractor=_extract_run_id,
         model_metrics=model_metrics,
@@ -103,12 +115,18 @@ def run_pdp_analyses(
     run_id: Optional[str] = None,
     model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
+    data_preparation_params: Optional[dict] = None,
 ) -> None:
     """Run PDP analyses using mandatory parquet paths and trained model."""
     from .analysis_definition.pdp_analysis import build_and_run_pdp_analyses
 
     if old_model_column is None and model_validation_params:
         old_model_column = model_validation_params.get("old_model_column")
+
+    # Merge all available parameters for the analysis
+    merged_params = {**(model_validation_params or {})}
+    if data_preparation_params:
+        merged_params["data_preparation"] = data_preparation_params
 
     build_and_run_pdp_analyses(
         train_df_path=train_df_path,
@@ -117,7 +135,7 @@ def run_pdp_analyses(
         prediction_column=prediction_column,
         trained_model=trained_model,
         old_model_column=old_model_column,
-        params=model_validation_params,
+        params=merged_params,
         run_id=run_id,
         resolved_run_extractor=_extract_run_id,
         model_metrics=model_metrics,
