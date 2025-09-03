@@ -5,17 +5,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
-try:
-    from modelcreation.pipelines.model_validation.analysis_definition import global_analysis as global_funcs  # type: ignore
-except Exception:  # pragma: no cover
-    from .analysis_definition import global_analysis as global_funcs  # type: ignore
-
-# isort: off
-try:
-    from modelcreation.pipelines.model_validation.analysis_class import ModelAnalysis  # type: ignore
-except Exception:  # pragma: no cover
-    from .analysis_class import ModelAnalysis  # type: ignore
-# isort: on
+# (ModelAnalysis now only used inside analysis_definition builders; no direct import needed here.)
 
 
 def _extract_run_id(run_id: Optional[str], model_metrics: Optional[Any]) -> Optional[str]:
@@ -48,70 +38,24 @@ def run_global_analyses(
     train_dataset,
     target_column: str,
     prediction_column: str,
+    old_model_column: Optional[str] = None,
     run_id: Optional[str] = None,
     model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
 ) -> None:
-    """Execute configured global analyses using config-defined params."""
-    from .config import global_analysis  # local import for registry
+    from .analysis_definition.global_analysis import build_and_run_global_analyses
 
-    context_args = {
-        "test_dataset": test_dataset,
-        "train_dataset": train_dataset,
-        "target_column": target_column,
-        "prediction_column": prediction_column,
-        "run_id": run_id,
-        "model_metrics": model_metrics,
-    }
-    if model_validation_params:
-        context_args.update(model_validation_params)
-        if "calibration_bins" in model_validation_params and "n_bins" not in context_args:
-            context_args["n_bins"] = model_validation_params["calibration_bins"]
-
-    resolved_run = _extract_run_id(context_args.get("run_id"), context_args.get("model_metrics"))
-
-    for item in global_analysis:
-        gen_func = getattr(global_funcs, item.get("func_name", ""), None)
-        if gen_func is None:
-            continue
-        title = item.get("title", item.get("name", "Analysis"))
-        inputs_spec = item.get("inputs", {})
-        dataset_keys = item.get("datasets", ["test_dataset"])  # default
-        analysis_cfg = item.get("analysis_params", {})
-
-        for ds_key in dataset_keys:
-            dataset = context_args.get(ds_key)
-            if dataset is None:
-                continue
-            run_subset_label = ds_key.replace("_dataset", "")
-
-            kwargs = {}
-            for arg_name, spec in inputs_spec.items():
-                spec_type = spec.get("type")
-                if spec_type == "column":
-                    col_name_key = spec.get("source")
-                    if col_name_key not in context_args:
-                        continue
-                    col_name = context_args[col_name_key]
-                    if col_name not in dataset.columns:
-                        continue
-                    series = dataset[col_name]
-                    thr_param = spec.get("binarize_threshold_param")
-                    if thr_param and thr_param in context_args:
-                        thr_val = context_args.get(thr_param) or 0.0
-                        series = _binarize_target(series, thr_val)
-                    kwargs[arg_name] = series
-                elif spec_type == "param":
-                    kwargs[arg_name] = context_args.get(spec.get("source"))
-                elif spec_type == "literal":
-                    kwargs[arg_name] = spec.get("value")
-                else:
-                    continue
-            if not kwargs:
-                continue
-            analysis = ModelAnalysis(gen_func, title, config=analysis_cfg)
-            analysis.run_analysis(run_subset_label, **kwargs)
-            analysis.save_to_mlflow(identifier_run=resolved_run)
+    build_and_run_global_analyses(
+        train_df=train_dataset,
+        test_df=test_dataset,
+        target_column=target_column,
+        prediction_column=prediction_column,
+        old_model_column=old_model_column,
+        params=model_validation_params,
+        run_id=run_id,
+        resolved_run_extractor=_extract_run_id,
+        model_metrics=model_metrics,
+    )
 
 
 def generate_predictions(
@@ -140,6 +84,12 @@ def generate_predictions(
 
     train_out[prediction_column] = trained_model.predict(train_dataset)
     test_out[prediction_column] = trained_model.predict(test_dataset)
+
+    # Add weight column if missing (defaults to 1.0 for all rows)
+    if "weight" not in train_out.columns:
+        train_out["weight"] = 1.0
+    if "weight" not in test_out.columns:
+        test_out["weight"] = 1.0
 
     if old_model_column:
         if old_model_column not in train_out.columns or old_model_column not in test_out.columns:

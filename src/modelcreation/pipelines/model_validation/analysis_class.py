@@ -2,82 +2,143 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 import mlflow
 
 
-class ModelAnalysis:
-    """Run analyses, collect artifacts, and persist them as MLflow artifacts.
+@dataclass
+class _ArtifactPayload:
+    figures: Dict[str, Any]
+    tables: Dict[str, Any]
 
-    Contract for `func` provided in constructor:
-    - Inputs: arbitrary keyword args forwarded from `run_analysis`.
-    - Output: tuple (figures, tables)
-        - figures: can be a single Matplotlib Figure or a dict[str, Figure]
-        - tables: a dict-like structure suitable for JSON serialization
+
+class ModelAnalysis:
+    """Container to execute one or more analysis functions and log artifacts to MLflow.
+
+    Backward compatible with previous implementation but adds:
+    - Extensible payload dataclass
+    - Support for multiple figure formats (future-proof)
+    - Single-shot or incremental MLflow logging via save_to_mlflow / log_all
+    - Clear normalization hooks for figures & tables
+
+    Callable contract for `func` passed to constructor:
+        func(**kwargs) -> (figures, tables)
+    where figures is either None, a single matplotlib Figure, or a dict[str, Figure].
+    Tables must be JSON serializable (dict) after normalization.
     """
 
-    def __init__(self, func, analysis_name: str, config: Optional[Dict[str, Any]] = None):
-        """Initialize the analysis wrapper.
+    def __init__(
+        self,
+        func,
+        analysis_name: str,
+        config: Optional[Dict[str, Any]] = None,
+        *,
+        artifact_root: Optional[str] = None,
+        figure_formats: Optional[Iterable[str]] = None,
+    ) -> None:
+        """Create a ModelAnalysis wrapper.
 
-        Parameters:
-            func: Callable implementing the analysis, returning (figures, tables).
-            analysis_name: A human-friendly name for this analysis.
-            config: Optional dict of configuration parameters (thresholds, bin counts, etc.)
-                    that influence the analysis but are not necessarily passed as direct
-                    function args. Persisted in self.config and can be added to tables.
+        Parameters
+        ----------
+        func : Callable
+            Callable returning (figures, tables) when executed.
+        analysis_name : str
+            Human friendly name for the analysis (used for artifact folder & filenames).
+        config : dict, optional
+            Configuration influencing analysis logic (persisted into tables under `_config`).
+        artifact_root : str, optional
+            Base artifact folder (defaults to a slugified version of analysis_name).
+        figure_formats : Iterable[str], optional
+            Iterable of file extensions to persist figures as (default: ["png"]).
         """
         self.analysis_name = analysis_name
         self.func = func
         self.config: Dict[str, Any] = config or {}
-        # artifacts[name] = {"figures": dict[str, Figure], "tables": dict[str, Any]}
-        self.artifacts: Dict[str, Dict[str, Any]] = {}
+        self._artifact_root = (
+            artifact_root or analysis_name.lower().replace(" ", "_")
+        )
+        self.figure_formats = list(figure_formats or ["png"])  # future extension
+        # artifacts[name] = _ArtifactPayload
+        self.artifacts: Dict[str, _ArtifactPayload] = {}
 
-    def run_analysis(self, name: str, include_config: bool = True, **kwargs: Any) -> None:
+    # --------- Public API -------------------------------------------------
+    def run_analysis(
+        self, name: str, include_config: bool = True, **kwargs: Any
+    ) -> None:
+        """Execute the underlying callable and store normalized artifacts under `name`."""
         figures, tables = self.func(**kwargs)
-
-        # Normalize figures to a dict[str, Figure]
-        if figures is None:
-            fig_dict = {}
-        elif hasattr(figures, "savefig"):
-            fig_dict = {"plot": figures}  # single figure
-        elif isinstance(figures, dict):
-            fig_dict = figures
-        else:
-            raise TypeError(
-                "figures must be a matplotlib Figure or a dict[str, Figure]"
-            )
-
-        table_dict = tables or {}
-        if include_config and self.config:
-            # Attach config under a reserved key to avoid collision
-            table_dict = {"_config": self.config, **table_dict}
-
-        self.artifacts[name] = {"figures": fig_dict, "tables": table_dict}
+        fig_dict = self._normalize_figures(figures)
+        table_dict = self._normalize_tables(tables, include_config=include_config)
+        self.artifacts[name] = _ArtifactPayload(figures=fig_dict, tables=table_dict)
 
     def get_artifacts(self) -> Dict[str, Dict[str, Any]]:
-        return self.artifacts
+        # Return a shallow copy in legacy shape for backwards compatibility
+        return {
+            k: {"figures": v.figures, "tables": v.tables} for k, v in self.artifacts.items()
+        }
 
     def save_to_mlflow(
         self,
         identifier_run: Optional[str] = None,
         base_artifact_path: Optional[str] = None,
     ) -> None:
-        """Persist collected figures and tables into MLflow as artifacts.
-        - identifier_run: existing MLflow run_id to use, or None to use active run or create a new one.
-        - base_artifact_path: folder under which to place artifacts (defaults to sanitized analysis_name).
-        """
-        artifact_root = base_artifact_path or self.analysis_name.lower().replace(" ", "_")
+        """Persist currently stored artifacts to MLflow.
 
-        # Determine run context
+        Parameters
+        ----------
+        identifier_run : str, optional
+            Existing MLflow run id; if absent uses active run or creates new one.
+        base_artifact_path : str, optional
+            Base path under which artifacts are logged (defaults to sanitized analysis name).
+        """
+        self._log_to_mlflow(identifier_run, base_artifact_path)
+
+    # Convenience alias for clarity in multi-analysis scenarios
+    log_all = save_to_mlflow
+
+    # --------- Internal helpers -------------------------------------------
+    def _normalize_figures(self, figures: Any) -> Dict[str, Any]:
+        if figures is None:
+            return {}
+        if hasattr(figures, "savefig"):
+            return {"plot": figures}
+        if isinstance(figures, dict):
+            # Ensure all values look like figures (have savefig) or are serializable placeholders
+            return figures
+        raise TypeError(
+            "figures must be None, a matplotlib Figure, or a dict[str, Figure]"
+        )
+
+    def _normalize_tables(
+        self, tables: Any, *, include_config: bool
+    ) -> Dict[str, Any]:
+        out: Dict[str, Any] = {}
+        if tables is None:
+            tables = {}
+        if isinstance(tables, dict):
+            out = tables
+        else:  # Allow returning arbitrary object with to_dict
+            if hasattr(tables, "to_dict"):
+                out = tables.to_dict()  # type: ignore[assignment]
+            else:
+                raise TypeError("tables must be dict-like or have to_dict()")
+        if include_config and self.config:
+            out = {"_config": self.config, **out}
+        return out
+
+    def _log_to_mlflow(
+        self, identifier_run: Optional[str], base_artifact_path: Optional[str]
+    ) -> None:
+        artifact_root = base_artifact_path or self._artifact_root
+
         active = mlflow.active_run()
         need_close = False
-
         if identifier_run:
             if not active or active.info.run_id != identifier_run:
                 mlflow.start_run(run_id=identifier_run)
-            need_close = False
         elif not active:
             mlflow.start_run()
             need_close = True
@@ -85,34 +146,48 @@ class ModelAnalysis:
         try:
             for name, payload in self.artifacts.items():
                 sub_path = f"{artifact_root}/{name}"
-                figures = payload.get("figures", {})
-                for fig_key, fig in figures.items():
-                    filename = f"{self.analysis_name.lower().replace(' ', '_')}_{name}_{fig_key}.png"
-                    local_path = Path.cwd() / filename
-                    try:
-                        fig.savefig(local_path, bbox_inches="tight")
-                        mlflow.log_artifact(str(local_path), artifact_path=sub_path)
-                    finally:
-                        if local_path.exists():
-                            try:
-                                os.remove(local_path)
-                            except OSError:
-                                pass
-                tables = payload.get("tables", {})
-                table_file = (
-                    f"{self.analysis_name.lower().replace(' ', '_')}_{name}_tables.json"
-                )
-                table_path = Path.cwd() / table_file
-                try:
-                    with open(table_path, "w", encoding="utf-8") as f:
-                        json.dump(tables, f, indent=2)
-                    mlflow.log_artifact(str(table_path), artifact_path=sub_path)
-                finally:
-                    if table_path.exists():
-                        try:
-                            os.remove(table_path)
-                        except OSError:
-                            pass
+                self._log_figures(payload.figures, sub_path)
+                self._log_tables(payload.tables, name, sub_path)
         finally:
             if need_close:
                 mlflow.end_run()
+
+    # Logging primitives ---------------------------------------------------
+    def _log_figures(self, figures: Dict[str, Any], artifact_sub_path: str) -> None:
+        for fig_key, fig in figures.items():
+            if not hasattr(fig, "savefig"):
+                # Skip non-figure objects silently (could be metadata)
+                continue
+            for fmt in self.figure_formats:
+                filename = (
+                    f"{self.analysis_name.lower().replace(' ', '_')}_"
+                    f"{fig_key}.{fmt}"
+                )
+                local_path = Path.cwd() / filename
+                try:
+                    fig.savefig(local_path, bbox_inches="tight")
+                    mlflow.log_artifact(str(local_path), artifact_path=artifact_sub_path)
+                finally:
+                    if local_path.exists():
+                        try:
+                            os.remove(local_path)
+                        except OSError:
+                            pass
+
+    def _log_tables(
+        self, tables: Dict[str, Any], name: str, artifact_sub_path: str
+    ) -> None:
+        table_file = (
+            f"{self.analysis_name.lower().replace(' ', '_')}_{name}_tables.json"
+        )
+        table_path = Path.cwd() / table_file
+        try:
+            with open(table_path, "w", encoding="utf-8") as f:
+                json.dump(tables, f, indent=2)
+            mlflow.log_artifact(str(table_path), artifact_path=artifact_sub_path)
+        finally:
+            if table_path.exists():
+                try:
+                    os.remove(table_path)
+                except OSError:
+                    pass
