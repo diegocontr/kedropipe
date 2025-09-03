@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-09-03T17:26:06.545825+00:00"
+    "timestamp": "2025-09-03T19:24:54.634889+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.02169364400469931,
+    "duration": 0.021192961998167448,
     "status": "success"
   },
   {
@@ -29,7 +29,7 @@
     "dataset": "prepared_model_data",
     "node_id": "69ae005c",
     "status": "Available",
-    "size": 125786
+    "size": 223919
   },
   {
     "event": "after_dataset_saved",
@@ -48,7 +48,7 @@
     "event": "after_node_run",
     "node": "resolve_mlflow_run_id",
     "node_id": "4c24a77d",
-    "duration": 0.0014549650004482828,
+    "duration": 0.002000439999392256,
     "status": "success"
   },
   {
@@ -63,7 +63,7 @@
     "dataset": "prepared_model_data",
     "node_id": "69ae005c",
     "status": "Available",
-    "size": 125786
+    "size": 223919
   },
   {
     "event": "after_dataset_loaded",
@@ -76,7 +76,7 @@
     "event": "after_node_run",
     "node": "split_full_data_node",
     "node_id": "082bffa9",
-    "duration": 0.004876854000031017,
+    "duration": 0.006558670000231359,
     "status": "success"
   },
   {
@@ -84,28 +84,28 @@
     "dataset": "train_dataset",
     "node_id": "68b45ccd",
     "status": "Available",
-    "size": 146372
+    "size": 224000
   },
   {
     "event": "after_dataset_saved",
     "dataset": "test_dataset",
     "node_id": "c07abfbb",
     "status": "Available",
-    "size": 40297
+    "size": 59660
   },
   {
     "event": "after_dataset_loaded",
     "dataset": "train_dataset",
     "node_id": "68b45ccd",
     "status": "Available",
-    "size": 146372
+    "size": 224000
   },
   {
     "event": "after_dataset_loaded",
     "dataset": "test_dataset",
     "node_id": "c07abfbb",
     "status": "Available",
-    "size": 40297
+    "size": 59660
   },
   {
     "event": "after_dataset_loaded",
@@ -115,10 +115,17 @@
     "size": 0
   },
   {
+    "event": "after_dataset_loaded",
+    "dataset": "feature_columns",
+    "node_id": "2b07b970",
+    "status": "Available",
+    "size": 23
+  },
+  {
     "event": "after_node_run",
     "node": "separate_features_target_node",
-    "node_id": "c25076b5",
-    "duration": 0.01091597100457875,
+    "node_id": "c2228351",
+    "duration": 0.010586358002910856,
     "status": "success"
   },
   {
@@ -195,7 +202,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 3.018914009000582,
+    "duration": 2.7150309460048447,
     "status": "success"
   },
   {
@@ -224,14 +231,14 @@
     "dataset": "test_dataset",
     "node_id": "c07abfbb",
     "status": "Available",
-    "size": 40297
+    "size": 59660
   },
   {
     "event": "after_dataset_loaded",
     "dataset": "train_dataset",
     "node_id": "68b45ccd",
     "status": "Available",
-    "size": 146372
+    "size": 224000
   },
   {
     "event": "after_dataset_loaded",
@@ -265,7 +272,7 @@
     "event": "after_node_run",
     "node": "generate_predictions",
     "node_id": "e1312146",
-    "duration": 0.01257990800513653,
+    "duration": 0.008321866000187583,
     "status": "success"
   },
   {
@@ -273,28 +280,28 @@
     "dataset": "train_dataset_with_preds",
     "node_id": "ba9bb4e2",
     "status": "Available",
-    "size": 0
+    "size": 293413
   },
   {
     "event": "after_dataset_saved",
     "dataset": "test_dataset_with_preds",
     "node_id": "a066a1e5",
     "status": "Available",
-    "size": 0
+    "size": 78848
   },
   {
     "event": "after_dataset_loaded",
     "dataset": "test_dataset_with_preds",
     "node_id": "a066a1e5",
     "status": "Available",
-    "size": 0
+    "size": 78848
   },
   {
     "event": "after_dataset_loaded",
     "dataset": "train_dataset_with_preds",
     "node_id": "ba9bb4e2",
     "status": "Available",
-    "size": 0
+    "size": 293413
   },
   {
     "event": "after_dataset_loaded",
@@ -335,11 +342,11 @@
     "event": "after_node_run",
     "node": "run_global_analyses",
     "node_id": "8c9cbbd0",
-    "duration": 2.5298565609991783,
+    "duration": 2.488771550997626,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-09-03T17:26:12.435221+00:00"
+    "timestamp": "2025-09-03T19:25:00.179812+00:00"
   }
 ]

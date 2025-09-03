@@ -39,6 +39,7 @@ class GlobalAnalysesRunner(BaseAnalysis):
         self.test_df = test_df
         self.target_column = target_column
         self.prediction_column = prediction_column
+    # Use old_model_column exactly as provided (no normalization)
         self.old_model_column = old_model_column
         self.params = params or {}
         self.run_id = run_id
@@ -51,24 +52,28 @@ class GlobalAnalysesRunner(BaseAnalysis):
 
         weight_col = self.params.get("weight_column")
         if weight_col and weight_col not in self.train_df.columns:
-            print(
-                f"Warning: weight_column '{weight_col}' not found. Proceeding without weights."
-            )
+            # Silently drop invalid weight column
+            weight_col = None
             weight_col = None
         self.weight_col = weight_col
 
         self.calibration_bins = int(self.params.get("calibration_bins", 20))
         self.resolved_run = self._extract_run_id(self.run_id, self.model_metrics)
 
+        # Build model spec. Always include new model. Optionally add old model if provided.
         models_cfg: Dict[str, Dict[str, Any]] = {
             "New model": {"pred_col": prediction_column, "name": "new"}
         }
-        if (
-            old_model_column
-            and old_model_column in self.train_df.columns
-            and old_model_column in self.test_df.columns
-        ):
-            models_cfg["Old model"] = {"pred_col": old_model_column, "name": "old"}
+        if old_model_column:
+            if (
+                old_model_column in self.train_df.columns
+                and old_model_column in self.test_df.columns
+            ):
+                models_cfg["Old model"] = {
+                    "pred_col": old_model_column,
+                    "name": "old",
+                }
+            # If missing we just proceed with new model only (no noisy prints)
         self.models_cfg = models_cfg
 
         obs = {"target_col": target_column}
@@ -107,6 +112,8 @@ class GlobalAnalysesRunner(BaseAnalysis):
         Raw results kept in self._raw_results for later transformation by create_artifacts.
         """
         from model_monitoring.global_analyses.analyses import ANALYSIS_REGISTRY
+
+    # Silent skip if any model columns missing
 
         analyses_sequence = [
             ("lorenz_curve", self.func_dict_lorenz),

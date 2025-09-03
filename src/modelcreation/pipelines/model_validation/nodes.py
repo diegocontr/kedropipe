@@ -44,6 +44,25 @@ def run_global_analyses(
     model_validation_params: Optional[dict] = None,
 ) -> None:
     from .analysis_definition.global_analysis import build_and_run_global_analyses
+    # --- Diagnostics to understand why old model might be missing later ---
+    try:
+        # If Kedro didn't map the param directly, fall back to value inside composite params dict (no mutation)
+        if old_model_column is None and model_validation_params:
+            old_model_column = model_validation_params.get("old_model_column")
+        print("[run_global_analyses] Incoming train cols:", list(train_dataset.columns))
+        print("[run_global_analyses] Incoming test cols:", list(test_dataset.columns))
+        if old_model_column:
+            print(
+                f"[run_global_analyses] old_model_column parameter='{old_model_column}' present_in_train={old_model_column in train_dataset.columns} present_in_test={old_model_column in test_dataset.columns}"
+            )
+            if old_model_column not in train_dataset.columns or old_model_column not in test_dataset.columns:
+                print(
+                    "[run_global_analyses] WARNING: old_model_column not found in one or both datasets at node entry. It will not appear in global analyses."
+                )
+        else:
+            print("[run_global_analyses] old_model_column parameter is None or empty")
+    except Exception as _e:  # pragma: no cover
+        print(f"[run_global_analyses] Diagnostics failed: {_e}")
 
     build_and_run_global_analyses(
         train_df=train_dataset,
@@ -82,8 +101,21 @@ def generate_predictions(
     train_out = train_dataset.copy()
     test_out = test_dataset.copy()
 
-    train_out[prediction_column] = trained_model.predict(train_dataset)
-    test_out[prediction_column] = trained_model.predict(test_dataset)
+    # Use only feature columns present in model if attribute exists
+    try:
+        feature_names = getattr(trained_model, 'feature_names_', None)
+        if feature_names:
+            train_pred_input = train_dataset[feature_names]
+            test_pred_input = test_dataset[feature_names]
+        else:
+            train_pred_input = train_dataset
+            test_pred_input = test_dataset
+    except Exception:
+        train_pred_input = train_dataset
+        test_pred_input = test_dataset
+
+    train_out[prediction_column] = trained_model.predict(train_pred_input)
+    test_out[prediction_column] = trained_model.predict(test_pred_input)
 
     # Add weight column if missing (defaults to 1.0 for all rows)
     if "weight" not in train_out.columns:
@@ -91,19 +123,22 @@ def generate_predictions(
     if "weight" not in test_out.columns:
         test_out["weight"] = 1.0
 
+    # Do NOT synthesize old model predictions automatically; only use if column already exists
     if old_model_column:
-        if old_model_column not in train_out.columns or old_model_column not in test_out.columns:
-            noise_factor = float(old_model_noise_factor or 0.0)
-            for df in (train_out, test_out):
-                base = df[prediction_column].astype(float)
-                if noise_factor > 0:
-                    noise = rng.normal(0.0, noise_factor, size=len(base))
-                    old_vals = base * (1.0 + noise)
-                else:
-                    old_vals = base * 0.9  # simple deterministic baseline
-                # Clip negatives if target appears non-negative
-                if (df.get('target_B') is not None) and (df['target_B'].min() >= 0):
-                    old_vals = np.clip(old_vals, 0, None)
-                df[old_model_column] = old_vals
+        missing = []
+        if old_model_column not in train_out.columns:
+            missing.append("train")
+        if old_model_column not in test_out.columns:
+            missing.append("test")
+        if missing:
+            print(
+                f"Warning: old_model_column '{old_model_column}' missing in {', '.join(missing)} dataset(s). Global analyses will show only the new model."
+            )
 
+    print(f"[generate_predictions] Output train columns: {list(train_out.columns)}")
+    print(f"[generate_predictions] Output test columns: {list(test_out.columns)}")
+    if old_model_column:
+        present_train = old_model_column in train_out.columns
+        present_test = old_model_column in test_out.columns
+        print(f"[generate_predictions] old_model_column='{old_model_column}' train_present={present_train} test_present={present_test}")
     return train_out, test_out

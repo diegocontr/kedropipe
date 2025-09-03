@@ -88,7 +88,13 @@ resolved_mlflow_run_id:
   type: MemoryDataset
 
 train_dataset_with_preds:
-  type: MemoryDataset
+  type: pandas.ParquetDataset
+  filepath: data/processed/train_dataset_with_preds.parquet
+  save_args:
+    compression: snappy
 
 test_dataset_with_preds:
-  type: MemoryDataset
+  type: pandas.ParquetDataset
+  filepath: data/processed/test_dataset_with_preds.parquet
+  save_args:
+    compression: snappy

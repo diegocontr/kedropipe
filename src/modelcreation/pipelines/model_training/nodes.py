@@ -94,17 +94,21 @@ def separate_features_target(
     train_dataset: pd.DataFrame,
     test_dataset: pd.DataFrame,
     target_column: str,
+    feature_columns_str: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, str, str]:
     """Split full train/test DataFrames into feature matrices and target CSV strings.
 
-    Returns X_train, X_test, y_train_str, y_test_str (targets serialized as CSV text for existing downstream compatibility).
+    Only the originally declared feature columns (feature_columns_str) are used for X;
+    any passthrough/reference columns (e.g. old model predictions) remain in train/test
+    datasets for later analyses but are excluded from model training.
     """
     if target_column not in train_dataset.columns:
         raise ValueError(f"target_column '{target_column}' not in train_dataset")
     if target_column not in test_dataset.columns:
         raise ValueError(f"target_column '{target_column}' not in test_dataset")
 
-    feature_cols = [c for c in train_dataset.columns if c != target_column]
+    declared_features = [c for c in feature_columns_str.split(',') if c]
+    feature_cols = [c for c in declared_features if c in train_dataset.columns]
     X_train = train_dataset[feature_cols].copy()
     X_test = test_dataset[feature_cols].copy()
 

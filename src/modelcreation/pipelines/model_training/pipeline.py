@@ -29,6 +29,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "train_dataset",
                     "test_dataset",
                     "params:data_preparation.target_column",
+                    "feature_columns",
                 ],
                 outputs=["X_train", "X_test", "y_train", "y_test"],
                 name="separate_features_target_node",
