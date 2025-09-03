@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-09-03T21:27:57.189215+00:00"
+    "timestamp": "2025-09-03T21:41:59.488865+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.021076191995234694,
+    "duration": 0.020289388005039655,
     "status": "success"
   },
   {
@@ -48,7 +48,7 @@
     "event": "after_node_run",
     "node": "resolve_mlflow_run_id",
     "node_id": "4c24a77d",
-    "duration": 0.001088081997295376,
+    "duration": 0.0013501359935617074,
     "status": "success"
   },
   {
@@ -76,7 +76,7 @@
     "event": "after_node_run",
     "node": "split_full_data_node",
     "node_id": "082bffa9",
-    "duration": 0.005048929000622593,
+    "duration": 0.006206585996551439,
     "status": "success"
   },
   {
@@ -125,7 +125,7 @@
     "event": "after_node_run",
     "node": "separate_features_target_node",
     "node_id": "c2228351",
-    "duration": 0.011978154005191755,
+    "duration": 0.011535539000760764,
     "status": "success"
   },
   {
@@ -202,7 +202,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 2.7031844390003243,
+    "duration": 2.560610746004386,
     "status": "success"
   },
   {
@@ -272,7 +272,7 @@
     "event": "after_node_run",
     "node": "generate_predictions",
     "node_id": "e1312146",
-    "duration": 0.011314194001897704,
+    "duration": 0.008604747003118973,
     "status": "success"
   },
   {
@@ -349,11 +349,74 @@
     "event": "after_node_run",
     "node": "run_global_analyses",
     "node_id": "96a76de3",
-    "duration": 3.1531754629977513,
+    "duration": 2.053220150002744,
+    "status": "success"
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.train_with_preds_path",
+    "node_id": "3a8a6454",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.test_with_preds_path",
+    "node_id": "a2f40565",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.target_column",
+    "node_id": "c689343a",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.prediction_column",
+    "node_id": "2e831ab7",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation.old_model_column",
+    "node_id": "5e681149",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "resolved_mlflow_run_id",
+    "node_id": "c57679c2",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "model_metrics",
+    "node_id": "9157662c",
+    "status": "Available",
+    "size": 504
+  },
+  {
+    "event": "after_dataset_loaded",
+    "dataset": "params:model_validation",
+    "node_id": "30f7ff20",
+    "status": "Available",
+    "size": 0
+  },
+  {
+    "event": "after_node_run",
+    "node": "run_segmented_analyses",
+    "node_id": "5f4a7a75",
+    "duration": 3.131320633998257,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-09-03T21:28:03.969727+00:00"
+    "timestamp": "2025-09-03T21:42:07.563498+00:00"
   }
 ]

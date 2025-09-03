@@ -39,7 +39,6 @@ class GlobalAnalysesRunner(BaseAnalysis):
         self.test_df_path = test_df_path
         self.target_column = target_column
         self.prediction_column = prediction_column
-        # Use old_model_column exactly as provided (no normalization)
         self.old_model_column = old_model_column
         self.params = params or {}
         self.run_id = run_id

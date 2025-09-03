@@ -62,6 +62,36 @@ def run_global_analyses(
     )
 
 
+def run_segmented_analyses(
+    *,
+    train_df_path: str,
+    test_df_path: str,
+    target_column: str,
+    prediction_column: str,
+    old_model_column: Optional[str] = None,
+    run_id: Optional[str] = None,
+    model_metrics: Optional[Any] = None,
+    model_validation_params: Optional[dict] = None,
+) -> None:
+    """Run segmented analyses using mandatory parquet paths (defined in parameters)."""
+    from .analysis_definition.segmented_analysis import build_and_run_segmented_analyses
+
+    if old_model_column is None and model_validation_params:
+        old_model_column = model_validation_params.get("old_model_column")
+
+    build_and_run_segmented_analyses(
+        train_df_path=train_df_path,
+        test_df_path=test_df_path,
+        target_column=target_column,
+        prediction_column=prediction_column,
+        old_model_column=old_model_column,
+        params=model_validation_params,
+        run_id=run_id,
+        resolved_run_extractor=_extract_run_id,
+        model_metrics=model_metrics,
+    )
+
+
 def generate_predictions(
     trained_model,
     test_dataset: pd.DataFrame,

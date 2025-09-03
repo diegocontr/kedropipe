@@ -61,6 +61,17 @@ model_validation:
     # income:  # Example: use 4 quantile bins for income
     #   bins: 4
   
+  # Segmentation settings for segmented analysis
+  segments:
+    age_group:
+      bins: [18, 30, 45, 60, 75]
+      bin_labels: ["18-29", "30-44", "45-59", "60+"]
+    income_level:
+      bins: 5  # Use quantile-based binning
+    credit_score_group:
+      bins: [300, 500, 650, 750, 850]
+      bin_labels: ["Poor", "Fair", "Good", "Excellent"]
+  
   # Analysis settings
   bootstrap: false  # Whether to use bootstrap for confidence intervals
   old_model_noise_factor: 0.15  # Noise factor for synthetic old model generation
