@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-09-03T22:36:21.665470+00:00"
+    "timestamp": "2025-09-03T22:53:26.585474+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.021795309003209695,
+    "duration": 0.034967229003086686,
     "status": "success"
   },
   {
@@ -48,7 +48,7 @@
     "event": "after_node_run",
     "node": "resolve_mlflow_run_id",
     "node_id": "4c24a77d",
-    "duration": 0.0020825940009672195,
+    "duration": 0.002707861000089906,
     "status": "success"
   },
   {
@@ -76,7 +76,7 @@
     "event": "after_node_run",
     "node": "split_full_data_node",
     "node_id": "082bffa9",
-    "duration": 0.007470724005543161,
+    "duration": 0.010877515996980947,
     "status": "success"
   },
   {
@@ -125,7 +125,7 @@
     "event": "after_node_run",
     "node": "separate_features_target_node",
     "node_id": "c2228351",
-    "duration": 0.012645347000216134,
+    "duration": 0.010984790002112277,
     "status": "success"
   },
   {
@@ -202,7 +202,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 2.720525759003067,
+    "duration": 3.0545755260027363,
     "status": "success"
   },
   {
@@ -272,7 +272,7 @@
     "event": "after_node_run",
     "node": "generate_predictions",
     "node_id": "e1312146",
-    "duration": 0.01335847700102022,
+    "duration": 0.010622565001540352,
     "status": "success"
   },
   {
@@ -356,7 +356,7 @@
     "event": "after_node_run",
     "node": "run_global_analyses",
     "node_id": "819c605d",
-    "duration": 2.298810460000823,
+    "duration": 2.3801805689945468,
     "status": "success"
   },
   {
@@ -433,7 +433,7 @@
     "event": "after_node_run",
     "node": "run_pdp_analyses",
     "node_id": "4fa624cc",
-    "duration": 1.062799883999105,
+    "duration": 1.1700237199984258,
     "status": "success"
   },
   {
@@ -503,11 +503,11 @@
     "event": "after_node_run",
     "node": "run_segmented_analyses",
     "node_id": "639bd090",
-    "duration": 3.1771118830001797,
+    "duration": 3.393745109999145,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-09-03T22:36:31.306586+00:00"
+    "timestamp": "2025-09-03T22:53:37.028833+00:00"
   }
 ]

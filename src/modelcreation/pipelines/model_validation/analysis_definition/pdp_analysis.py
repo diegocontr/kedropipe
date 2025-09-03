@@ -192,7 +192,6 @@ class PDPAnalysesRunner(BaseAnalysis):
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
         """Execute PDP analyses directly from parquet paths (no DataFrame inputs)."""
-        from model_monitoring import calculate_statistics
         from model_monitoring.model_analyses import ModelAnalysisDataBuilder
 
         self._subset_results = {}
@@ -234,10 +233,22 @@ class PDPAnalysesRunner(BaseAnalysis):
             builder.apply_treatments()
             builder.apply_segments()
 
-            # Calculate statistics (same as segmented analysis)
-            dict_stats, agg_stats = calculate_statistics(
-                builder, self.func_dict_pdp, bootstrap=False
-            )
+            # Calculate PDP analysis (not statistics - actually run PDP algorithm)
+            builder.calculate(analysis_name="PDP")
+            
+            # Get PDP results
+            pdp_analysis = builder.get_analysis("PDP")
+            pdp_data = pdp_analysis._data  # This should contain the PDP results
+            
+            # Group PDP data by segment for plotting
+            dict_stats = {}
+            if not pdp_data.empty:
+                for segment_name in pdp_data['segment'].unique():
+                    segment_data = pdp_data[pdp_data['segment'] == segment_name].copy()
+                    dict_stats[segment_name] = segment_data
+            
+            # No aggregate stats for PDP
+            agg_stats = None
 
             self._subset_results[subset_label] = {
                 "builder": builder,
@@ -245,11 +256,47 @@ class PDPAnalysesRunner(BaseAnalysis):
                 "agg_stats": agg_stats,
             }
 
+    def _create_pdp_plot(self, stats_df, segment_name):
+        """Create a PDP plot for a given segment's data."""
+        import matplotlib.pyplot as plt
+        
+        try:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # PDP data should have columns: ["segment", "bin", "eval_value", "prediction", "pdp"]
+            if 'eval_value' in stats_df.columns and 'pdp' in stats_df.columns:
+                # Sort by eval_value for proper line plotting
+                plot_data = stats_df.sort_values('eval_value')
+                
+                ax.plot(plot_data['eval_value'], plot_data['pdp'], 
+                       marker='o', linewidth=2, markersize=6)
+                
+                ax.set_xlabel('Feature Value')
+                ax.set_ylabel('Partial Dependence')
+                ax.set_title(f'Partial Dependence Plot - {segment_name}')
+                ax.grid(True, alpha=0.3)
+                
+                plt.tight_layout()
+                return fig
+            else:
+                # Fallback: create a simple text plot indicating missing data
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.text(0.5, 0.5, f'PDP data structure issue for {segment_name}\nColumns: {list(stats_df.columns)}', 
+                       ha='center', va='center', transform=ax.transAxes)
+                ax.set_title(f'PDP Plot - {segment_name} (Data Issue)')
+                return fig
+                
+        except Exception as e:
+            # Create error plot
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.text(0.5, 0.5, f'Error creating PDP plot for {segment_name}:\n{e!s}', 
+                   ha='center', va='center', transform=ax.transAxes)
+            ax.set_title(f'PDP Plot - {segment_name} (Error)')
+            return fig
+
     # ---- artifact materialization ----------------------------------------
     def create_artifacts(self) -> None:
         """Create PDP panel figures per subset and store artifacts."""
-        from model_monitoring.plotting import plot_segment_statistics
-
         self._figures_by_subset = {}
 
         for subset_label, payload in self._subset_results.items():
@@ -262,15 +309,7 @@ class PDPAnalysesRunner(BaseAnalysis):
             # Generate plots for each segment
             for segment_name, stats_df in dict_stats.items():
                 try:
-                    plot_obj = plot_segment_statistics(
-                        stats_df, panel_configs=self.report_panels, agg_stats=agg_stats, show=False
-                    )
-                    # Extract the figure from the plot object
-                    if isinstance(plot_obj, tuple) and len(plot_obj) >= 1:
-                        fig = plot_obj[0]  # Usually returns (fig, axes)
-                    else:
-                        fig = plot_obj
-                    
+                    fig = self._create_pdp_plot(stats_df, segment_name)
                     figures_by_segment[segment_name] = fig
 
                     # Convert stats_df to serializable format
@@ -284,6 +323,12 @@ class PDPAnalysesRunner(BaseAnalysis):
                     }
                 except Exception as e:
                     print(f"Warning: Could not generate PDP plot for segment {segment_name}: {e}")
+                    # Create error figure as fallback
+                    import matplotlib.pyplot as plt
+                    fig, ax = plt.subplots(figsize=(8, 4))
+                    ax.text(0.5, 0.5, f'Error: {e!s}', ha='center', va='center', transform=ax.transAxes)
+                    ax.set_title(f'PDP Plot Error - {segment_name}')
+                    figures_by_segment[segment_name] = fig
 
             # Store metadata
             metadata_tables = {
