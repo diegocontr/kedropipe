@@ -34,8 +34,8 @@ def _binarize_target(series, threshold: float) -> pd.Series:
 
 def run_global_analyses(
     *,
-    test_dataset,
-    train_dataset,
+    train_df_path: str,
+    test_df_path: str,
     target_column: str,
     prediction_column: str,
     old_model_column: Optional[str] = None,
@@ -43,30 +43,15 @@ def run_global_analyses(
     model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
 ) -> None:
+    """Run global analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.global_analysis import build_and_run_global_analyses
-    # --- Diagnostics to understand why old model might be missing later ---
-    try:
-        # If Kedro didn't map the param directly, fall back to value inside composite params dict (no mutation)
-        if old_model_column is None and model_validation_params:
-            old_model_column = model_validation_params.get("old_model_column")
-        print("[run_global_analyses] Incoming train cols:", list(train_dataset.columns))
-        print("[run_global_analyses] Incoming test cols:", list(test_dataset.columns))
-        if old_model_column:
-            print(
-                f"[run_global_analyses] old_model_column parameter='{old_model_column}' present_in_train={old_model_column in train_dataset.columns} present_in_test={old_model_column in test_dataset.columns}"
-            )
-            if old_model_column not in train_dataset.columns or old_model_column not in test_dataset.columns:
-                print(
-                    "[run_global_analyses] WARNING: old_model_column not found in one or both datasets at node entry. It will not appear in global analyses."
-                )
-        else:
-            print("[run_global_analyses] old_model_column parameter is None or empty")
-    except Exception as _e:  # pragma: no cover
-        print(f"[run_global_analyses] Diagnostics failed: {_e}")
+
+    if old_model_column is None and model_validation_params:
+        old_model_column = model_validation_params.get("old_model_column")
 
     build_and_run_global_analyses(
-        train_df=train_dataset,
-        test_df=test_dataset,
+        train_df_path=train_df_path,
+        test_df_path=test_df_path,
         target_column=target_column,
         prediction_column=prediction_column,
         old_model_column=old_model_column,

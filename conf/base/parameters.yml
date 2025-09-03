@@ -7,7 +7,7 @@ data_preparation:
   target_column: target_B  # Change this to target_A, target_B, target_C, or any other target column
   # Column in the raw dataset that contains predictions from an older/baseline model
   # This will be retained for evaluation/comparison but excluded from training features
-  old_model_column: prediction_B
+  old_model_column: "prediction_B"
   # Optionally list any additional passthrough columns you want to always retain
   # forced_passthrough_columns: [prediction_B]
 
@@ -16,7 +16,7 @@ model_training:
   # Data splitting
   test_size: 0.2
   random_state: 42
-  old_model_column: prediction_B  
+  old_model_column: "prediction_B"  
   
   # CatBoost model parameters
   loss_function: "Poisson"  # Default Poisson loss for count data
@@ -36,7 +36,10 @@ model_validation:
   target_column: target_B
   prediction_column: prediction_new
   weight_column: weight
-  old_model_column: prediction_B  
+  old_model_column: "prediction_B"  
+  # File paths for datasets with predictions (used by path-based global analyses)
+  train_with_preds_path: data/processed/train_dataset_with_preds.parquet
+  test_with_preds_path: data/processed/test_dataset_with_preds.parquet
   
   # MLflow settings
   use_mlflow: true  # Whether to use MLflow for model loading and artifact storage

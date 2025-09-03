@@ -20,8 +20,8 @@ class GlobalAnalysesRunner(BaseAnalysis):
     def __init__(
         self,
         *,
-        train_df,
-        test_df,
+        train_df_path: str,
+        test_df_path: str,
         target_column: str,
         prediction_column: str,
         old_model_column: Optional[str],
@@ -30,16 +30,16 @@ class GlobalAnalysesRunner(BaseAnalysis):
         resolved_run_extractor,
         model_metrics: Optional[Any],
     ) -> None:
-        """Initialize the global analyses runner."""
+        """Initialize the global analyses runner (path-based ingestion)."""
         from model_monitoring.plotting.core import set_plot_theme
 
         super().__init__(artifact_root="global_analyses")
         self.analysis_name = "Global Analyses"
-        self.train_df = train_df
-        self.test_df = test_df
+        self.train_df_path = train_df_path
+        self.test_df_path = test_df_path
         self.target_column = target_column
         self.prediction_column = prediction_column
-    # Use old_model_column exactly as provided (no normalization)
+        # Use old_model_column exactly as provided (no normalization)
         self.old_model_column = old_model_column
         self.params = params or {}
         self.run_id = run_id
@@ -50,12 +50,22 @@ class GlobalAnalysesRunner(BaseAnalysis):
         if theme:
             set_plot_theme(theme)
 
+        # Determine column availability using parquet schema (no full data load)
+        import pyarrow.parquet as pq
+
+        def _schema_cols(path: str) -> set[str]:
+            try:
+                return set(pq.ParquetFile(path).schema.names)
+            except Exception:
+                return set()
+
+        self._train_cols = _schema_cols(self.train_df_path)
+        self._test_cols = _schema_cols(self.test_df_path)
+
         weight_col = self.params.get("weight_column")
-        if weight_col and weight_col not in self.train_df.columns:
-            # Silently drop invalid weight column
-            weight_col = None
-            weight_col = None
-        self.weight_col = weight_col
+        if weight_col and weight_col not in self._train_cols:
+            weight_col = None  # silently drop invalid
+        self.weight_col = weight_col  # may be None
 
         self.calibration_bins = int(self.params.get("calibration_bins", 20))
         self.resolved_run = self._extract_run_id(self.run_id, self.model_metrics)
@@ -66,14 +76,11 @@ class GlobalAnalysesRunner(BaseAnalysis):
         }
         if old_model_column:
             if (
-                old_model_column in self.train_df.columns
-                and old_model_column in self.test_df.columns
+                old_model_column in self._train_cols
+                and old_model_column in self._test_cols
             ):
-                models_cfg["Old model"] = {
-                    "pred_col": old_model_column,
-                    "name": "old",
-                }
-            # If missing we just proceed with new model only (no noisy prints)
+                models_cfg["Old model"] = {"pred_col": old_model_column, "name": "old"}
+            # else silently ignore
         self.models_cfg = models_cfg
 
         obs = {"target_col": target_column}
@@ -107,12 +114,7 @@ class GlobalAnalysesRunner(BaseAnalysis):
 
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
-        """Replicate notebook-style workflow using GlobalAnalysisDataBuilder for train/test.
-
-        Builds separate builders for train and test datasets, registers analyses,
-        loads data (if needed), calculates, and stores analysis objects for later
-        artifact creation.
-        """
+        """Execute analyses directly from parquet paths (no DataFrame inputs)."""
         from model_monitoring.global_analyses import GlobalAnalysisDataBuilder
 
         self._subset_results = {}
@@ -122,17 +124,16 @@ class GlobalAnalysesRunner(BaseAnalysis):
             ("prediction_analysis", self.func_dict_prediction),
         ]
 
-        for subset_label, df in ("train", self.train_df), ("test", self.test_df):
-            builder = GlobalAnalysisDataBuilder(data=df, extra_cols=[])
+        path_map = {"train": self.train_df_path, "test": self.test_df_path}
+
+        for subset_label, data_path in path_map.items():
+            builder = GlobalAnalysisDataBuilder(data=data_path, extra_cols=[])
             for key, cfg in analyses_cfg:
                 builder.add_analysis(key, cfg)
             builder.load_data()
             builder.calculate()
             analyses_objs = builder.get_analyses_objects()
-            self._subset_results[subset_label] = {
-                "builder": builder,
-                "analyses_objs": analyses_objs,
-            }
+            self._subset_results[subset_label] = {"builder": builder, "analyses_objs": analyses_objs}
 
     # ---- artifact materialization ----------------------------------------
     def create_artifacts(self) -> None:

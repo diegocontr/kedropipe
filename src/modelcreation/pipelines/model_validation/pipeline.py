@@ -1,11 +1,6 @@
 from kedro.pipeline import Pipeline, node
 
-# isort: off
-try:
-    from modelcreation.pipelines.model_validation.nodes import run_global_analyses, generate_predictions  # type: ignore
-except Exception:  # pragma: no cover
-    from .nodes import run_global_analyses, generate_predictions  # type: ignore
-# isort: on
+from .nodes import run_global_analyses, generate_predictions
 
 
 def resolve_mlflow_run_id(run_id: str | None) -> str:
@@ -39,10 +34,11 @@ def create_pipeline(**kwargs):
             node(
                 func=run_global_analyses,
                 inputs={
-                    "test_dataset": "test_dataset_with_preds",
-                    "train_dataset": "train_dataset_with_preds",
+                    "train_df_path": "params:model_validation.train_with_preds_path",
+                    "test_df_path": "params:model_validation.test_with_preds_path",
                     "target_column": "params:model_validation.target_column",
                     "prediction_column": "params:model_validation.prediction_column",
+                    "old_model_column": "params:model_validation.old_model_column",
                     "run_id": "resolved_mlflow_run_id",
                     "model_metrics": "model_metrics",
                     "model_validation_params": "params:model_validation",
