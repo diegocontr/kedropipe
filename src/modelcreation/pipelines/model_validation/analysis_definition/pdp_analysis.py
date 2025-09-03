@@ -1,0 +1,310 @@
+from __future__ import annotations
+
+from typing import Any, Dict, Optional
+
+from ..analysis_class import BaseAnalysis  # type: ignore
+
+
+class PDPAnalysesRunner(BaseAnalysis):
+    """PDP analyses orchestrator with minimal subclass surface.
+
+    Responsibilities:
+        1. __init__ builds configuration
+        2. run_analysis() performs heavy computations and stores raw objects
+        3. create_artifacts() transforms raw objects into figures + JSON tables via add_artifact
+
+    save_to_mlflow + get_artifacts come from the base so a node does:
+        runner.run_analysis(); runner.create_artifacts(); runner.save_to_mlflow(...)
+    """
+
+    def __init__(
+        self,
+        *,
+        train_df_path: str,
+        test_df_path: str,
+        target_column: str,
+        prediction_column: str,
+        old_model_column: Optional[str],
+        params: Optional[dict],
+        run_id: Optional[str],
+        resolved_run_extractor,
+        model_metrics: Optional[Any],
+        trained_model: Any,
+    ) -> None:
+        """Initialize the PDP analyses runner (path-based ingestion)."""
+        from model_monitoring.plotting.core import set_plot_theme
+
+        super().__init__(artifact_root="pdp_analyses")
+        self.analysis_name = "PDP Analyses"
+        self.train_df_path = train_df_path
+        self.test_df_path = test_df_path
+        self.target_column = target_column
+        self.prediction_column = prediction_column
+        self.old_model_column = old_model_column
+        self.params = params or {}
+        self.run_id = run_id
+        self.model_metrics = model_metrics
+        self.trained_model = trained_model
+        self._extract_run_id = resolved_run_extractor
+
+        theme = self.params.get("plot_theme") or {}
+        if theme:
+            set_plot_theme(theme)
+
+        # Determine column availability using parquet schema (no full data load)
+        import pyarrow.parquet as pq
+
+        def _schema_cols(path: str) -> set[str]:
+            try:
+                return set(pq.ParquetFile(path).schema.names)
+            except Exception:
+                return set()
+
+        self._train_cols = _schema_cols(self.train_df_path)
+        self._test_cols = _schema_cols(self.test_df_path)
+
+        weight_col = self.params.get("weight_column")
+        if weight_col and weight_col not in self._train_cols:
+            weight_col = None  # silently drop invalid
+        self.weight_col = weight_col  # may be None
+
+        self.resolved_run = self._extract_run_id(self.run_id, self.model_metrics)
+
+        # Get feature columns from model if available
+        feature_cols = getattr(self.trained_model, 'feature_names_', None)
+        if not feature_cols:
+            # Fallback to common feature columns
+            feature_cols = [col for col in self._train_cols if col not in [
+                self.target_column, self.prediction_column, self.old_model_column, 
+                self.weight_col, 'weight'
+            ]]
+        self.feature_cols = feature_cols
+
+        # Build segmentation strategies
+        self.segments = self._build_segments()
+
+        # Build PDP configuration
+        self.func_dict_pdp = self._build_pdp_config()
+
+        # Build report panels configuration
+        self.report_panels = self._build_report_panels()
+
+    def _build_segments(self):
+        """Build segmentation strategies based on available columns and params."""
+        from model_monitoring import SegmentCategorical, SegmentCustom
+
+        segments = []
+        segment_configs = self.params.get("segments", {})
+
+        # Age group segment
+        age_config = segment_configs.get("age_group", {})
+        if "age" in self._train_cols and "age" in self._test_cols:
+            segments.append(
+                SegmentCustom(
+                    seg_col="age",
+                    seg_name="age_group",
+                    bins=age_config.get("bins", [18, 30, 45, 60, 75]),
+                    bin_labels=age_config.get("bin_labels", ["18-29", "30-44", "45-59", "60+"]),
+                )
+            )
+
+        # Income level segment
+        income_config = segment_configs.get("income_level", {})
+        if "income" in self._train_cols and "income" in self._test_cols:
+            segments.append(
+                SegmentCustom(
+                    seg_col="income",
+                    seg_name="income_level",
+                    bins=income_config.get("bins", 5),
+                )
+            )
+
+        # Credit score segment
+        credit_config = segment_configs.get("credit_score_group", {})
+        if "credit_score" in self._train_cols and "credit_score" in self._test_cols:
+            segments.append(
+                SegmentCustom(
+                    seg_col="credit_score",
+                    seg_name="credit_score_group",
+                    bins=credit_config.get("bins", [300, 500, 650, 750, 850]),
+                    bin_labels=credit_config.get("bin_labels", ["Poor", "Fair", "Good", "Excellent"]),
+                )
+            )
+
+        # Region segment (categorical)
+        if "region" in self._train_cols and "region" in self._test_cols:
+            segments.append(
+                SegmentCategorical(seg_col="region", seg_name="region_segment")
+            )
+
+        return segments
+
+    def _build_pdp_config(self) -> Dict[str, Any]:
+        """Build PDP configuration dictionary."""
+        return {
+            "model": {
+                "model": self.trained_model,
+                "name": "trained_model",
+                "feature_cols": self.feature_cols,
+            },
+            "target_col": self.target_column,
+            "weight_col": self.weight_col or "weight",
+        }
+
+    def _build_report_panels(self):
+        """Build report panels configuration for PDP plots."""
+        return [
+            {
+                "title": "Partial Dependence Plot",
+                "type": "metric",
+                "metric_col": "pdp",
+                "plot_type": "line",
+            },
+        ]
+
+    # ---- analysis execution (no artifact logging here) --------------------
+    def run_analysis(self) -> None:
+        """Execute PDP analyses directly from parquet paths (no DataFrame inputs)."""
+        from model_monitoring import calculate_statistics
+        from model_monitoring.model_analyses import ModelAnalysisDataBuilder
+
+        self._subset_results = {}
+
+        path_map = {"train": self.train_df_path, "test": self.test_df_path}
+
+        for subset_label, data_path in path_map.items():
+            # Get extra columns needed for analysis
+            extra_cols = []
+            if self.weight_col:
+                extra_cols.append(self.weight_col)
+            extra_cols.extend([self.target_column])
+            if self.old_model_column:
+                extra_cols.append(self.old_model_column)
+            
+            # Add feature columns
+            extra_cols.extend(self.feature_cols)
+            
+            # Add segmentation columns
+            for segment in self.segments:
+                if hasattr(segment, 'seg_col'):
+                    extra_cols.append(segment.seg_col)
+
+            # Remove duplicates
+            extra_cols = list(set(extra_cols))
+
+            # Initialize ModelAnalysisDataBuilder
+            builder = ModelAnalysisDataBuilder(data=data_path, extra_cols=extra_cols)
+
+            # Register PDP analysis
+            builder.add_analysis("PDP", self.func_dict_pdp)
+
+            # Add segments (used to derive PDP grids for the corresponding features)
+            for segment in self.segments:
+                builder.add_segment(segment)
+
+            # Load data and apply treatments
+            builder.load_data()
+            builder.apply_treatments()
+            builder.apply_segments()
+
+            # Calculate statistics (same as segmented analysis)
+            dict_stats, agg_stats = calculate_statistics(
+                builder, self.func_dict_pdp, bootstrap=False
+            )
+
+            self._subset_results[subset_label] = {
+                "builder": builder,
+                "dict_stats": dict_stats,
+                "agg_stats": agg_stats,
+            }
+
+    # ---- artifact materialization ----------------------------------------
+    def create_artifacts(self) -> None:
+        """Create PDP panel figures per subset and store artifacts."""
+        from model_monitoring.plotting import plot_segment_statistics
+
+        self._figures_by_subset = {}
+
+        for subset_label, payload in self._subset_results.items():
+            dict_stats = payload["dict_stats"]
+            agg_stats = payload["agg_stats"]
+
+            figures_by_segment = {}
+            tables_by_segment = {}
+
+            # Generate plots for each segment
+            for segment_name, stats_df in dict_stats.items():
+                try:
+                    plot_obj = plot_segment_statistics(
+                        stats_df, panel_configs=self.report_panels, agg_stats=agg_stats, show=False
+                    )
+                    # Extract the figure from the plot object
+                    if isinstance(plot_obj, tuple) and len(plot_obj) >= 1:
+                        fig = plot_obj[0]  # Usually returns (fig, axes)
+                    else:
+                        fig = plot_obj
+                    
+                    figures_by_segment[segment_name] = fig
+
+                    # Convert stats_df to serializable format
+                    tables_by_segment[segment_name] = {
+                        "pdp_data": stats_df.to_dict(orient="records"),
+                        "metadata": {
+                            "segment_name": segment_name,
+                            "n_rows": len(stats_df),
+                            "columns": list(stats_df.columns),
+                        },
+                    }
+                except Exception as e:
+                    print(f"Warning: Could not generate PDP plot for segment {segment_name}: {e}")
+
+            # Store metadata
+            metadata_tables = {
+                "metadata": {
+                    "subset": subset_label,
+                    "n_segments": len(dict_stats),
+                    "segment_names": list(dict_stats.keys()),
+                    "feature_columns": self.feature_cols,
+                    "model_name": self.trained_model.__class__.__name__ if self.trained_model else 'Unknown',
+                },
+            }
+
+            # Combine tables
+            all_tables = {
+                **tables_by_segment,
+                "metadata": metadata_tables,
+            }
+
+            self._figures_by_subset[subset_label] = {
+                "figures": figures_by_segment,
+                "dict_stats": dict_stats,
+            }
+
+            self.add_artifact(
+                f"pdp_panels_{subset_label}",
+                figures=figures_by_segment,
+                tables=all_tables,
+                include_config=True,
+                config={"panels": self.report_panels, "segments": [s.seg_name for s in self.segments]},
+            )
+
+        return self._figures_by_subset
+
+    def get_artifacts(self) -> Dict[str, Dict[str, Any]]:
+        """Return a shallow copy of stored artifacts (figures objects & tables).
+
+        Shape: {artifact_name: {"figures": {...}, "tables": {...}}}
+        Useful if caller wants to inspect or test without relying on MLflow side-effects.
+        """
+        return {
+            k: {"figures": v.figures, "tables": v.tables}
+            for k, v in self.artifacts.items()
+        }
+
+
+def build_and_run_pdp_analyses(**kwargs) -> None:
+    """Build and run PDP analyses with the provided configuration."""
+    runner = PDPAnalysesRunner(**kwargs)
+    runner.run_analysis()
+    runner.create_artifacts()
+    runner.save_to_mlflow(identifier_run=runner.resolved_run)

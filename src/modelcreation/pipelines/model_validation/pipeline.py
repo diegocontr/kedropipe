@@ -1,6 +1,11 @@
 from kedro.pipeline import Pipeline, node
 
-from .nodes import generate_predictions, run_global_analyses, run_segmented_analyses
+from .nodes import (
+    generate_predictions,
+    run_global_analyses,
+    run_pdp_analyses,
+    run_segmented_analyses,
+)
 
 
 def resolve_mlflow_run_id(run_id: str | None) -> str:
@@ -60,6 +65,22 @@ def create_pipeline(**kwargs):
                 },
                 outputs=None,
                 name="run_segmented_analyses",
+            ),
+            node(
+                func=run_pdp_analyses,
+                inputs={
+                    "train_df_path": "params:model_validation.train_with_preds_path",
+                    "test_df_path": "params:model_validation.test_with_preds_path",
+                    "target_column": "params:model_validation.target_column",
+                    "prediction_column": "params:model_validation.prediction_column",
+                    "trained_model": "trained_model",
+                    "old_model_column": "params:model_validation.old_model_column",
+                    "run_id": "resolved_mlflow_run_id",
+                    "model_metrics": "model_metrics",
+                    "model_validation_params": "params:model_validation",
+                },
+                outputs=None,
+                name="run_pdp_analyses",
             ),
         ]
     )
