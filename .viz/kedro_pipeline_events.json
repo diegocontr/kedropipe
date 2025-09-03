@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-09-03T19:24:54.634889+00:00"
+    "timestamp": "2025-09-03T19:58:43.205914+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.021192961998167448,
+    "duration": 0.023315081001783255,
     "status": "success"
   },
   {
@@ -48,7 +48,7 @@
     "event": "after_node_run",
     "node": "resolve_mlflow_run_id",
     "node_id": "4c24a77d",
-    "duration": 0.002000439999392256,
+    "duration": 0.0017521920017316006,
     "status": "success"
   },
   {
@@ -76,7 +76,7 @@
     "event": "after_node_run",
     "node": "split_full_data_node",
     "node_id": "082bffa9",
-    "duration": 0.006558670000231359,
+    "duration": 0.007130630001483951,
     "status": "success"
   },
   {
@@ -125,7 +125,7 @@
     "event": "after_node_run",
     "node": "separate_features_target_node",
     "node_id": "c2228351",
-    "duration": 0.010586358002910856,
+    "duration": 0.012644419999560341,
     "status": "success"
   },
   {
@@ -202,7 +202,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 2.7150309460048447,
+    "duration": 2.665386770000623,
     "status": "success"
   },
   {
@@ -272,7 +272,7 @@
     "event": "after_node_run",
     "node": "generate_predictions",
     "node_id": "e1312146",
-    "duration": 0.008321866000187583,
+    "duration": 0.009070450003491715,
     "status": "success"
   },
   {
@@ -342,11 +342,11 @@
     "event": "after_node_run",
     "node": "run_global_analyses",
     "node_id": "8c9cbbd0",
-    "duration": 2.488771550997626,
+    "duration": 2.2723578500008443,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-09-03T19:25:00.179812+00:00"
+    "timestamp": "2025-09-03T19:58:48.512269+00:00"
   }
 ]

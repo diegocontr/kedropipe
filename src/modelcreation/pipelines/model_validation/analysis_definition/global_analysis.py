@@ -107,81 +107,98 @@ class GlobalAnalysesRunner(BaseAnalysis):
 
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
-        """Execute all underlying model_monitoring analyses and store raw results.
+        """Replicate notebook-style workflow using GlobalAnalysisDataBuilder for train/test.
 
-        Raw results kept in self._raw_results for later transformation by create_artifacts.
+        Builds separate builders for train and test datasets, registers analyses,
+        loads data (if needed), calculates, and stores analysis objects for later
+        artifact creation.
         """
-        from model_monitoring.global_analyses.analyses import ANALYSIS_REGISTRY
+        from model_monitoring.global_analyses import GlobalAnalysisDataBuilder
 
-    # Silent skip if any model columns missing
-
-        analyses_sequence = [
+        self._subset_results = {}
+        analyses_cfg = [
             ("lorenz_curve", self.func_dict_lorenz),
             ("calibration_curve", self.func_dict_calibration),
             ("prediction_analysis", self.func_dict_prediction),
         ]
-        self._raw_results = {}
+
         for subset_label, df in ("train", self.train_df), ("test", self.test_df):
-            for key, cfg in analyses_sequence:
-                AnalysisCls = ANALYSIS_REGISTRY[key]
-                analysis_obj = AnalysisCls(cfg)
-                analysis_obj.run(df)
-                artifact_key = f"{key}_{subset_label}"
-                self._raw_results[artifact_key] = {
-                    "analysis_key": key,
-                    "subset": subset_label,
-                    "cfg": cfg,
-                    "obj": analysis_obj,
-                }
+            builder = GlobalAnalysisDataBuilder(data=df, extra_cols=[])
+            for key, cfg in analyses_cfg:
+                builder.add_analysis(key, cfg)
+            builder.load_data()
+            builder.calculate()
+            analyses_objs = builder.get_analyses_objects()
+            self._subset_results[subset_label] = {
+                "builder": builder,
+                "analyses_objs": analyses_objs,
+            }
 
     # ---- artifact materialization ----------------------------------------
     def create_artifacts(self) -> None:
-        """Convert raw results into MLflow-ready artifacts via add_artifact."""
+        """Create combined panel figures per subset and store artifacts.
+
+        Returns analyses objects & figure per subset similarly to notebook logic.
+        """
         from model_monitoring.plotting import plot_global_statistics
 
-        for artifact_key, meta in self._raw_results.items():
-            key = meta["analysis_key"]
-            cfg = meta["cfg"]
-            analysis_obj = meta["obj"]
-            # Tables
-            payload = analysis_obj.get_data_and_metadata()
-            tables: Dict[str, Any] = {}
-            for k, v in payload.items():
-                entry = dict(v)
-                data = entry.get("data")
-                if hasattr(data, "to_dict") and not isinstance(data, dict):
-                    entry["data"] = data.to_dict(orient="records")
-                elif isinstance(data, dict):  # nested frames
-                    converted = {}
-                    for dk, dv in data.items():
-                        if hasattr(dv, "to_dict"):
-                            converted[dk] = dv.to_dict(orient="records")
-                        else:
-                            converted[dk] = dv
-                    entry["data"] = converted
-                tables[k] = entry
+        report_panels = [
+            {"title": "Lorenz Curve", "type": "lorenz_curve"},
+            {"title": "Calibration Curve", "type": "calibration_curve"},
+            {
+                "title": "Prediction histogram",
+                "type": "prediction_analysis",
+                "xscale": "log",
+                "yscale": "log",
+            },
+        ]
 
-            panel_cfg = [{"type": key, "title": cfg.get("title", key)}]
+        self._figures_by_subset = {}
+
+        for subset_label, payload in self._subset_results.items():
+            analyses_objs = payload["analyses_objs"]
             fig_axes = plot_global_statistics(
-                {key: analysis_obj}, panel_configs=panel_cfg, show=False
+                analyses_objs, panel_configs=report_panels, show=False
             )
             fig = None
             if isinstance(fig_axes, tuple) and len(fig_axes) >= 1:
                 fig = fig_axes[0]
-            # Store
+            self._figures_by_subset[subset_label] = {
+                "analyses_objs": analyses_objs,
+                "figure": fig,
+            }
+
+            # Build tables extraction combining all analyses metadata
+            tables: Dict[str, Any] = {}
+            for key, analysis_obj in analyses_objs.items():
+                meta = analysis_obj.get_data_and_metadata()
+                # Flatten meta into serializable dict
+                ser_meta: Dict[str, Any] = {}
+                for mk, mv in meta.items():
+                    entry = dict(mv)
+                    data = entry.get("data")
+                    if hasattr(data, "to_dict") and not isinstance(data, dict):
+                        entry["data"] = data.to_dict(orient="records")
+                    elif isinstance(data, dict):
+                        converted = {}
+                        for dk, dv in data.items():
+                            if hasattr(dv, "to_dict"):
+                                converted[dk] = dv.to_dict(orient="records")
+                            else:
+                                converted[dk] = dv
+                        entry["data"] = converted
+                    ser_meta[mk] = entry
+                tables[key] = ser_meta
+
             self.add_artifact(
-                artifact_key,
+                f"global_panels_{subset_label}",
                 figures=fig,
                 tables=tables,
                 include_config=True,
-                config=cfg,
+                config={"panels": report_panels},
             )
 
-    # Optional convenience if someone still calls runner.run()
-    def run(self) -> None:  # type: ignore[override]
-        self.run_analysis()
-        self.create_artifacts()
-        self.save_to_mlflow(identifier_run=self.resolved_run)
+        return self._figures_by_subset
 
     def get_artifacts(self) -> Dict[str, Dict[str, Any]]:
         """Return a shallow copy of stored artifacts (figures objects & tables).
