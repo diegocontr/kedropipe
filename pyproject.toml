@@ -7,17 +7,21 @@ requires-python = ">=3.9"
 name = "modelcreation"
 readme = "README.md"
 dynamic = [ "version",]
-dependencies = [
- "ipython>=8.10",
- "jupyterlab>=3.0",
- "notebook",
- "kedro~=1.0.0",
- "kedro-viz>=12.0.0",
- "pyarrow>=21.0.0",
- "fastparquet>=2024.11.0",
- "kedro-datasets>=4.1.0",
- "catboost>=1.2.8",
- "scikit-learn>=1.6.1",
+dependencies = [ 
+    "ipython>=8.10", 
+    "jupyterlab>=3.0", 
+    "notebook", 
+    "kedro~=1.0.0",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "scipy",
+    "plotly",
+    "scikit-learn",
+    "catboost",
+    "mlflow>=2.8.0",
+    "setuptools<81.0.0",  # Pin to avoid pkg_resources deprecation warnings
 ]
 
 [project.scripts]
@@ -97,6 +101,3 @@ select = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[tool.kedro_telemetry]
-project_id = "107104057ea84b1eb7078e32a109413e"

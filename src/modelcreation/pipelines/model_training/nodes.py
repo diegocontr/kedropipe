@@ -5,69 +5,121 @@ specifically designed for count/regression tasks.
 """
 
 import logging
-from typing import Dict, Tuple
+from datetime import datetime
+from typing import Any, Dict, Tuple
 
 import pandas as pd
 from catboost import CatBoostRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import train_test_split
+import mlflow
+import mlflow.catboost
 
 logger = logging.getLogger(__name__)
 
 
-def split_data(
-    prepared_data: pd.DataFrame, 
-    params: Dict
-) -> Tuple[pd.DataFrame, pd.DataFrame, str, str]:
-    """Split prepared data into train and test sets.
+def setup_mlflow_experiment(params: Dict[str, Any]) -> str:
+    """Setup MLflow experiment based on parameters.
     
     Args:
-        prepared_data: Prepared dataframe with features and target
-        params: Parameters from conf/base/parameters.yml containing:
-            - test_size: Fraction of data to use for testing
-            - random_state: Random seed for reproducibility
+        params: Model training parameters containing MLflow configuration
         
     Returns:
-        Tuple of:
-        - X_train: Training features
-        - X_test: Test features  
-        - y_train: Training target as CSV string
-        - y_test: Test target as CSV string
+        Experiment ID as string
     """
-    logger.info("Starting data splitting for model training")
+    experiment_id = params.get("mlflow_experiment_id")
+    experiment_name = params.get("mlflow_experiment_name")
     
-    # Get parameters
+    if experiment_id is not None:
+        # Use provided experiment ID
+        try:
+            experiment = mlflow.get_experiment(experiment_id)
+            if experiment is None:
+                raise ValueError(f"Experiment with ID {experiment_id} does not exist")
+            logger.info(f"Using existing experiment: ID={experiment_id}, Name={experiment.name}")
+            mlflow.set_experiment(experiment_id=experiment_id)
+            return str(experiment_id)
+        except Exception as e:
+            logger.warning(f"Failed to use experiment ID {experiment_id}: {e}")
+            # Fall through to create new experiment
+    
+    # Create new experiment with time-based name if no valid experiment_id
+    if experiment_name is None:
+        # Generate time-based experiment name
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        experiment_name = f"kedropipe_experiment_{timestamp}"
+    
+    try:
+        # Try to get existing experiment by name
+        experiment = mlflow.get_experiment_by_name(experiment_name)
+        if experiment is not None:
+            experiment_id = experiment.experiment_id
+            logger.info(f"Using existing experiment: ID={experiment_id}, Name={experiment_name}")
+        else:
+            # Create new experiment
+            experiment_id = mlflow.create_experiment(experiment_name)
+            logger.info(f"Created new experiment: ID={experiment_id}, Name={experiment_name}")
+        
+        mlflow.set_experiment(experiment_id=experiment_id)
+        return str(experiment_id)
+        
+    except Exception as e:
+        logger.error(f"Failed to setup MLflow experiment: {e}")
+        # Use default experiment as fallback
+        logger.warning("Falling back to default experiment (ID=0)")
+        mlflow.set_experiment(experiment_id="0")
+        return "0"
+
+
+def split_data(
+    prepared_data: pd.DataFrame,
+    params: Dict,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split prepared full DataFrame into train/test full DataFrames.
+
+    Returns train_dataset, test_dataset (each including features + target column).
+    Target is assumed to be the last column (consistent with previous logic).
+    """
+    logger.info("Starting data splitting (full DataFrames) for model training")
     test_size = params.get("test_size", 0.2)
     random_state = params.get("random_state", 42)
-    
-    logger.info(f"Test size: {test_size}")
-    logger.info(f"Random state: {random_state}")
-    
-    # Get target column name (last column should be target)
-    target_col = prepared_data.columns[-1]
-    feature_cols = prepared_data.columns[:-1].tolist()
-    
-    logger.info(f"Target column: {target_col}")
-    logger.info(f"Feature columns: {feature_cols}")
-    
-    # Split features and target
-    X = prepared_data[feature_cols]
-    y = prepared_data[target_col]
-    
-    # Split into train and test
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state
+    train_df, test_df = train_test_split(
+        prepared_data, test_size=test_size, random_state=random_state
     )
-    
-    logger.info(f"Training set size: {len(X_train)}")
-    logger.info(f"Test set size: {len(X_test)}")
-    logger.info(f"Training target distribution: mean={y_train.mean():.3f}, std={y_train.std():.3f}")
-    logger.info(f"Test target distribution: mean={y_test.mean():.3f}, std={y_test.std():.3f}")
-    
-    # Convert target series to CSV string for text storage
+    logger.info("Full train rows=%d, test rows=%d", len(train_df), len(test_df))
+    return train_df, test_df
+
+
+def separate_features_target(
+    train_dataset: pd.DataFrame,
+    test_dataset: pd.DataFrame,
+    target_column: str,
+    feature_columns_str: str,
+) -> Tuple[pd.DataFrame, pd.DataFrame, str, str]:
+    """Split full train/test DataFrames into feature matrices and target CSV strings.
+
+    Only the originally declared feature columns (feature_columns_str) are used for X;
+    any passthrough/reference columns (e.g. old model predictions) remain in train/test
+    datasets for later analyses but are excluded from model training.
+    """
+    if target_column not in train_dataset.columns:
+        raise ValueError(f"target_column '{target_column}' not in train_dataset")
+    if target_column not in test_dataset.columns:
+        raise ValueError(f"target_column '{target_column}' not in test_dataset")
+
+    declared_features = [c for c in feature_columns_str.split(',') if c]
+    feature_cols = [c for c in declared_features if c in train_dataset.columns]
+    X_train = train_dataset[feature_cols].copy()
+    X_test = test_dataset[feature_cols].copy()
+
+    y_train = train_dataset[target_column]
+    y_test = test_dataset[target_column]
+
     y_train_str = y_train.to_csv(index=False)
     y_test_str = y_test.to_csv(index=False)
-    
+    logger.info(
+        "Separated features/target: features=%d target=%s", len(feature_cols), target_column
+    )
     return X_train, X_test, y_train_str, y_test_str
 
 
@@ -79,7 +131,7 @@ def train_catboost_model(
     feature_columns_str: str,
     params: Dict
 ) -> Tuple[str, str]:
-    """Train a CatBoost model with Poisson loss.
+    """Train a CatBoost model with Poisson loss and log to MLflow.
     
     Args:
         X_train: Training features
@@ -127,77 +179,112 @@ def train_catboost_model(
     logger.info(f"  Depth: {depth}")
     logger.info(f"  Early stopping rounds: {early_stopping_rounds}")
     
-    # Initialize CatBoost model
-    model = CatBoostRegressor(
-        loss_function=loss_function,
-        iterations=iterations,
-        learning_rate=learning_rate,
-        depth=depth,
-        early_stopping_rounds=early_stopping_rounds,
-        verbose=verbose,
-        random_state=random_state,
-        train_dir=None  # Disable training directory to avoid clutter
-    )
+    # Setup MLflow experiment
+    experiment_id = setup_mlflow_experiment(params)
+    logger.info(f"Using MLflow experiment ID: {experiment_id}")
     
-    # Train the model
-    logger.info("Training CatBoost model...")
-    model.fit(
-        X_train, y_train,
-        eval_set=(X_test, y_test),
-        use_best_model=True,
-        plot=False
-    )
-    
-    # Make predictions
-    logger.info("Making predictions...")
-    y_train_pred = model.predict(X_train)
-    y_test_pred = model.predict(X_test)
-    
-    # Calculate metrics
-    train_mae = mean_absolute_error(y_train, y_train_pred)
-    test_mae = mean_absolute_error(y_test, y_test_pred)
-    train_rmse = (mean_squared_error(y_train, y_train_pred)) ** 0.5
-    test_rmse = (mean_squared_error(y_test, y_test_pred)) ** 0.5
-    
-    # Get feature importance
-    feature_importance = dict(zip(feature_columns, model.feature_importances_))
-    
-    # Compile metrics
-    metrics = {
-        "train_mae": train_mae,
-        "test_mae": test_mae,
-        "train_rmse": train_rmse,
-        "test_rmse": test_rmse,
-        "best_iteration": model.best_iteration_,
-        "feature_importance": feature_importance,
-        "model_params": {
-            "loss_function": loss_function,
-            "iterations": iterations,
-            "learning_rate": learning_rate,
-            "depth": depth,
-            "best_iteration": model.best_iteration_
+    # Start MLflow run
+    with mlflow.start_run(run_name="catboost_training"):
+        # Log parameters
+        mlflow.log_param("loss_function", loss_function)
+        mlflow.log_param("iterations", iterations)
+        mlflow.log_param("learning_rate", learning_rate)
+        mlflow.log_param("depth", depth)
+        mlflow.log_param("early_stopping_rounds", early_stopping_rounds)
+        mlflow.log_param("random_state", random_state)
+        mlflow.log_param("train_size", len(X_train))
+        mlflow.log_param("test_size", len(X_test))
+        
+        # Initialize CatBoost model
+        model = CatBoostRegressor(
+            loss_function=loss_function,
+            iterations=iterations,
+            learning_rate=learning_rate,
+            depth=depth,
+            early_stopping_rounds=early_stopping_rounds,
+            verbose=verbose,
+            random_state=random_state,
+            train_dir=None  # Disable training directory to avoid clutter
+        )
+        
+        # Train the model
+        logger.info("Training CatBoost model...")
+        model.fit(
+            X_train, y_train,
+            eval_set=(X_test, y_test),
+            use_best_model=True,
+            plot=False
+        )
+        
+        # Make predictions
+        logger.info("Making predictions...")
+        y_train_pred = model.predict(X_train)
+        y_test_pred = model.predict(X_test)
+        
+        # Calculate metrics
+        train_mae = mean_absolute_error(y_train, y_train_pred)
+        test_mae = mean_absolute_error(y_test, y_test_pred)
+        train_rmse = (mean_squared_error(y_train, y_train_pred)) ** 0.5
+        test_rmse = (mean_squared_error(y_test, y_test_pred)) ** 0.5
+        
+        # Log metrics to MLflow
+        mlflow.log_metric("train_mae", train_mae)
+        mlflow.log_metric("test_mae", test_mae)
+        mlflow.log_metric("train_rmse", train_rmse)
+        mlflow.log_metric("test_rmse", test_rmse)
+        mlflow.log_metric("best_iteration", model.best_iteration_)
+        
+        # Get feature importance
+        feature_importance = dict(zip(feature_columns, model.feature_importances_))
+        
+        # Log feature importance as metrics
+        for feature, importance in feature_importance.items():
+            mlflow.log_metric(f"feature_importance_{feature}", importance)
+        
+        # Log the model to MLflow
+        mlflow.catboost.log_model(
+            model, 
+            "catboost_model"
+        )
+        
+        # Store the run ID for later retrieval
+        run_id = mlflow.active_run().info.run_id
+        logger.info(f"MLflow run ID: {run_id}")
+        
+        # Compile metrics
+        metrics = {
+            "train_mae": train_mae,
+            "test_mae": test_mae,
+            "train_rmse": train_rmse,
+            "test_rmse": test_rmse,
+            "best_iteration": model.best_iteration_,
+            "feature_importance": feature_importance,
+            "mlflow_run_id": run_id,
+            "model_params": {
+                "loss_function": loss_function,
+                "iterations": iterations,
+                "learning_rate": learning_rate,
+                "depth": depth,
+                "best_iteration": model.best_iteration_
+            }
         }
-    }
-    
-    logger.info("Model training completed!")
-    logger.info(f"Best iteration: {model.best_iteration_}")
-    logger.info(f"Training MAE: {train_mae:.4f}")
-    logger.info(f"Test MAE: {test_mae:.4f}")
-    logger.info(f"Training RMSE: {train_rmse:.4f}")
-    logger.info(f"Test RMSE: {test_rmse:.4f}")
-    
-    logger.info("Feature importance:")
-    for feature, importance in sorted(feature_importance.items(), key=lambda x: x[1], reverse=True):
-        logger.info(f"  {feature}: {importance:.4f}")
-    
-    # Serialize model and metrics as text
-    import base64
-    import pickle
-    
-    model_bytes = pickle.dumps(model)
-    model_str = base64.b64encode(model_bytes).decode('utf-8')
-    
-    import json
-    metrics_str = json.dumps(metrics, indent=2)
-    
-    return model_str, metrics_str
+        
+        logger.info("Model training completed!")
+        logger.info(f"Best iteration: {model.best_iteration_}")
+        logger.info(f"Training MAE: {train_mae:.4f}")
+        logger.info(f"Test MAE: {test_mae:.4f}")
+        logger.info(f"Training RMSE: {train_rmse:.4f}")
+        logger.info(f"Test RMSE: {test_rmse:.4f}")
+        logger.info(f"MLflow run ID: {run_id}")
+        
+        logger.info("Feature importance:")
+        for feature, importance in sorted(feature_importance.items(), key=lambda x: x[1], reverse=True):
+            logger.info(f"  {feature}: {importance:.4f}")
+        
+        # Return the actual model object and metrics as JSON string
+        import json
+        metrics_str = json.dumps(metrics, indent=2)
+        
+        return model, metrics_str
+
+

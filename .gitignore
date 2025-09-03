@@ -172,3 +172,13 @@ Thumbs.db
 # *.json
 # *.xlsx
 # *.parquet
+
+# MLflow
+mlruns/
+mlflow.db
+.mlflow/
+mlflow-runs/
+
+# Data files (ignore all data except raw)
+data/*
+!data/raw/
