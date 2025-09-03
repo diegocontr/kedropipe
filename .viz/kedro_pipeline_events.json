@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-09-03T21:41:59.488865+00:00"
+    "timestamp": "2025-09-03T21:46:18.981952+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.020289388005039655,
+    "duration": 0.020599932999175508,
     "status": "success"
   },
   {
@@ -48,7 +48,7 @@
     "event": "after_node_run",
     "node": "resolve_mlflow_run_id",
     "node_id": "4c24a77d",
-    "duration": 0.0013501359935617074,
+    "duration": 0.0017411799999536015,
     "status": "success"
   },
   {
@@ -76,7 +76,7 @@
     "event": "after_node_run",
     "node": "split_full_data_node",
     "node_id": "082bffa9",
-    "duration": 0.006206585996551439,
+    "duration": 0.006724689999828115,
     "status": "success"
   },
   {
@@ -125,7 +125,7 @@
     "event": "after_node_run",
     "node": "separate_features_target_node",
     "node_id": "c2228351",
-    "duration": 0.011535539000760764,
+    "duration": 0.010857262001081835,
     "status": "success"
   },
   {
@@ -202,7 +202,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 2.560610746004386,
+    "duration": 2.4239847530043335,
     "status": "success"
   },
   {
@@ -272,7 +272,7 @@
     "event": "after_node_run",
     "node": "generate_predictions",
     "node_id": "e1312146",
-    "duration": 0.008604747003118973,
+    "duration": 0.008913409998058341,
     "status": "success"
   },
   {
@@ -349,7 +349,7 @@
     "event": "after_node_run",
     "node": "run_global_analyses",
     "node_id": "96a76de3",
-    "duration": 2.053220150002744,
+    "duration": 2.068897024000762,
     "status": "success"
   },
   {
@@ -412,11 +412,11 @@
     "event": "after_node_run",
     "node": "run_segmented_analyses",
     "node_id": "5f4a7a75",
-    "duration": 3.131320633998257,
+    "duration": 3.096298659002059,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-09-03T21:42:07.563498+00:00"
+    "timestamp": "2025-09-03T21:46:26.907146+00:00"
   }
 ]
