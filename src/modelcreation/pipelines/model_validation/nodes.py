@@ -52,38 +52,39 @@ def run_global_analyses(
     *,
     train_df_path: str,
     test_df_path: str,
-    # New consolidated feature configuration dict. Expected keys: target, weight (optional), old_model (optional), prediction (optional)
+    # New consolidated feature configuration dict. Expected keys: target, weight (optional), old_model (optional), prediction (optional), model_features (optional)
     feat_conf: Optional[dict] = None,
     # Deprecated explicit params (kept for backward compatibility)
     target_column: Optional[str] = None,
     prediction_column: Optional[str] = None,
     old_model_column: Optional[str] = None,
     run_id: Optional[str] = None,
-    model_validation_params: Optional[dict] = None,
-    data_preparation_params: Optional[dict] = None,
+    global_analysis_config: Optional[dict] = None,
 ) -> None:
     """Run global analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.global_analysis import build_and_run_global_analyses
 
-    # Resolve columns precedence: feat_conf > explicit args > model_validation_params
+    # Resolve columns precedence: feat_conf > explicit args > global_analysis_config
     if feat_conf:
         target_column = feat_conf.get("target", target_column)
         old_model_column = feat_conf.get("old_model", old_model_column)
         prediction_column = feat_conf.get("prediction", prediction_column)
-    if target_column is None and model_validation_params:
-        target_column = model_validation_params.get("target_column")
-    if prediction_column is None and model_validation_params:
-        prediction_column = model_validation_params.get("prediction_column")
-    if old_model_column is None and model_validation_params:
-        old_model_column = model_validation_params.get("old_model_column")
+    if target_column is None and global_analysis_config:
+        target_column = global_analysis_config.get("target_column")
+    if prediction_column is None and global_analysis_config:
+        prediction_column = global_analysis_config.get("prediction_column")
+    if old_model_column is None and global_analysis_config:
+        old_model_column = global_analysis_config.get("old_model_column")
 
     if target_column is None or prediction_column is None:
         raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
 
     # Merge all available parameters for the analysis
-    merged_params = {**(model_validation_params or {})}
-    if data_preparation_params:
-        merged_params["data_preparation"] = data_preparation_params
+    merged_params = {**(global_analysis_config or {})}
+    
+    # Add model features from feat_conf if available
+    if feat_conf and "model_features" in feat_conf:
+        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
 
     build_and_run_global_analyses(
         train_df_path=train_df_path,
@@ -106,8 +107,7 @@ def run_segmented_analyses(
     prediction_column: Optional[str] = None,
     old_model_column: Optional[str] = None,
     run_id: Optional[str] = None,
-    model_validation_params: Optional[dict] = None,
-    data_preparation_params: Optional[dict] = None,
+    segmented_analysis_config: Optional[dict] = None,
 ) -> None:
     """Run segmented analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.segmented_analysis import build_and_run_segmented_analyses
@@ -116,20 +116,26 @@ def run_segmented_analyses(
         target_column = feat_conf.get("target", target_column)
         old_model_column = feat_conf.get("old_model", old_model_column)
         prediction_column = feat_conf.get("prediction", prediction_column)
-    if target_column is None and model_validation_params:
-        target_column = model_validation_params.get("target_column")
-    if prediction_column is None and model_validation_params:
-        prediction_column = model_validation_params.get("prediction_column")
-    if old_model_column is None and model_validation_params:
-        old_model_column = model_validation_params.get("old_model_column")
+    if target_column is None and segmented_analysis_config:
+        target_column = segmented_analysis_config.get("target_column")
+    if prediction_column is None and segmented_analysis_config:
+        prediction_column = segmented_analysis_config.get("prediction_column")
+    if old_model_column is None and segmented_analysis_config:
+        old_model_column = segmented_analysis_config.get("old_model_column")
 
     if target_column is None or prediction_column is None:
         raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
 
     # Merge all available parameters for the analysis
-    merged_params = {**(model_validation_params or {})}
-    if data_preparation_params:
-        merged_params["data_preparation"] = data_preparation_params
+    merged_params = {**(segmented_analysis_config or {})}
+    
+    # Add model features from feat_conf if available
+    if feat_conf and "model_features" in feat_conf:
+        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
+    
+    # Add categorical features from feat_conf if available
+    if feat_conf and "categorical_features" in feat_conf:
+        merged_params["categorical_features"] = feat_conf["categorical_features"]
 
     build_and_run_segmented_analyses(
         train_df_path=train_df_path,
@@ -153,8 +159,7 @@ def run_pdp_analyses(
     trained_model,
     old_model_column: Optional[str] = None,
     run_id: Optional[str] = None,
-    model_validation_params: Optional[dict] = None,
-    data_preparation_params: Optional[dict] = None,
+    pdp_analysis_config: Optional[dict] = None,
 ) -> None:
     """Run PDP analyses using mandatory parquet paths and trained model."""
     from .analysis_definition.pdp_analysis import build_and_run_pdp_analyses
@@ -163,20 +168,22 @@ def run_pdp_analyses(
         target_column = feat_conf.get("target", target_column)
         old_model_column = feat_conf.get("old_model", old_model_column)
         prediction_column = feat_conf.get("prediction", prediction_column)
-    if target_column is None and model_validation_params:
-        target_column = model_validation_params.get("target_column")
-    if prediction_column is None and model_validation_params:
-        prediction_column = model_validation_params.get("prediction_column")
-    if old_model_column is None and model_validation_params:
-        old_model_column = model_validation_params.get("old_model_column")
+    if target_column is None and pdp_analysis_config:
+        target_column = pdp_analysis_config.get("target_column")
+    if prediction_column is None and pdp_analysis_config:
+        prediction_column = pdp_analysis_config.get("prediction_column")
+    if old_model_column is None and pdp_analysis_config:
+        old_model_column = pdp_analysis_config.get("old_model_column")
 
     if target_column is None or prediction_column is None:
         raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
 
     # Merge all available parameters for the analysis
-    merged_params = {**(model_validation_params or {})}
-    if data_preparation_params:
-        merged_params["data_preparation"] = data_preparation_params
+    merged_params = {**(pdp_analysis_config or {})}
+    
+    # Add model features from feat_conf if available
+    if feat_conf and "model_features" in feat_conf:
+        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
 
     build_and_run_pdp_analyses(
         train_df_path=train_df_path,

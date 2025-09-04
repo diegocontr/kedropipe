@@ -40,8 +40,14 @@ model_validation:
   # Consolidated feature configuration (new). Prefer using this dict instead of individual params above.
   feat_conf:
     target: target_B
+    prediction: prediction_new
     weight: weight
     old_model: prediction_B
+    model_features:
+      - age
+      - income
+      - credit_score
+    categorical_features: ["credit_score"]  # Example: treat credit_score as categorical to test the functionality
   # MLflow experiment name for validation run (new). If null, a timestamped name will be generated.
   mlflow_experiment_name: null
   # File paths for datasets with predictions (used by path-based global analyses)
@@ -50,6 +56,29 @@ model_validation:
   
   # MLflow settings
   use_mlflow: true  # Whether to use MLflow for model loading and artifact storage
+  
+  # Analysis settings
+  bootstrap: true  # Whether to use bootstrap for confidence intervals
+  old_model_noise_factor: 0.15  # Noise factor for synthetic old model generation
+  mlflow_run_id: null   # Optional: existing MLflow run_id to log artifacts into
+
+# Analysis-specific configurations
+global_analysis_config:
+  plot_theme:
+    annotation_fontsize: 14
+    style: "ggplot"
+    target_color: "#1E1D25"
+    h_line_style: ":"
+  weight_column: weight  # Fallback if not in feat_conf
+  calibration_bins: 10  # Number of percentile bins for calibration plot
+
+segmented_analysis_config:
+  plot_theme:
+    annotation_fontsize: 14
+    style: "ggplot"
+    target_color: "#1E1D25"
+    h_line_style: ":"
+  weight_column: weight  # Fallback if not in feat_conf
   
   # Feature segmentation settings
   feature_binning:
@@ -78,19 +107,42 @@ model_validation:
     credit_score_group:
       bins: [300, 500, 650, 750, 850]
       bin_labels: ["Poor", "Fair", "Good", "Excellent"]
-  
-  # Analysis settings
-  bootstrap: true  # Whether to use bootstrap for confidence intervals
-  old_model_noise_factor: 0.15  # Noise factor for synthetic old model generation
-  calibration_bins: 10  # Number of percentile bins for calibration plot
-  mlflow_run_id: null   # Optional: existing MLflow run_id to log artifacts into
-  
-  # Reporting settings
+
+pdp_analysis_config:
   plot_theme:
     annotation_fontsize: 14
     style: "ggplot"
     target_color: "#1E1D25"
     h_line_style: ":"
+  weight_column: weight  # Fallback if not in feat_conf
+  
+  # Feature segmentation settings (same as segmented analysis)
+  feature_binning:
+    # Default binning strategy for all features (if not specified individually)
+    default_bins: 5  # Number of quantile-based bins
+    
+    # Custom binning for specific features
+    age:  # Keep original age binning as example
+      bins: [18, 30, 45, 60, 75]
+      labels: ["18-29", "30-44", "45-59", "60+"]
+    
+    credit_score:  # Example: custom bins for credit score
+      bins: [300, 550, 650, 750, 850]
+      labels: ["Poor", "Fair", "Good", "Excellent"]
+    # 
+    # income:  # Example: use 4 quantile bins for income
+    #   bins: 4
+  
+  # Segmentation settings for PDP analysis
+  segments:
+    age_group:
+      bins: [18, 30, 45, 60, 75]
+      bin_labels: ["18-29", "30-44", "45-59", "60+"]
+    income_level:
+      bins: 5  # Use quantile-based binning
+    credit_score_group:
+      bins: [300, 500, 650, 750, 850]
+      bin_labels: ["Poor", "Fair", "Good", "Excellent"]
 
 # Examples for different targets:
 # For target_A: change target_column to "target_A"

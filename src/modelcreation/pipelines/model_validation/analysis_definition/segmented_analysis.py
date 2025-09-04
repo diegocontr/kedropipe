@@ -85,7 +85,7 @@ class SegmentedAnalysesRunner(BaseAnalysis):
 
     def _build_segments(self) -> List[Any]:
         """Build segmentation strategies based on available columns and params."""
-        from model_monitoring import SegmentCustom
+        from model_monitoring import SegmentCustom, SegmentCategorical
 
         segments = []
         
@@ -104,6 +104,9 @@ class SegmentedAnalysesRunner(BaseAnalysis):
                 col for col in self._train_cols 
                 if col not in excluded_cols and col in self._test_cols
             ]
+        
+        # Get categorical features list
+        categorical_features = self.params.get("categorical_features", [])
         
         # Get segment configurations from parameters
         segment_configs = self.params.get("segments", {})
@@ -131,14 +134,26 @@ class SegmentedAnalysesRunner(BaseAnalysis):
                 bins = segment_config.get("bins", default_bins)
                 bin_labels = segment_config.get("bin_labels")
                 
-                segments.append(
-                    SegmentCustom(
-                        seg_col=seg_col,
-                        seg_name=segment_name,
-                        bins=bins,
-                        bin_labels=bin_labels,
+                if seg_col in categorical_features:
+                    # Use categorical segmentation for categorical features
+                    mapping = segment_config.get("mapping")  # Optional mapping for categories
+                    segments.append(
+                        SegmentCategorical(
+                            seg_col=seg_col,
+                            seg_name=segment_name,
+                            mapping=mapping,
+                        )
                     )
-                )
+                else:
+                    # Use numeric segmentation for continuous features
+                    segments.append(
+                        SegmentCustom(
+                            seg_col=seg_col,
+                            seg_name=segment_name,
+                            bins=bins,
+                            bin_labels=bin_labels,
+                        )
+                    )
         
         # If no explicit segments configured, create default segments for feature columns
         if not segments:
@@ -149,18 +164,27 @@ class SegmentedAnalysesRunner(BaseAnalysis):
                     bins = feature_config.get("bins", default_bins)
                     bin_labels = feature_config.get("labels")
                     
-                    # Determine if column is categorical or numeric
-                    # For now, assume all feature columns are numeric and use SegmentCustom
-                    # You could add logic here to detect categorical columns and use SegmentCategorical
-                    
-                    segments.append(
-                        SegmentCustom(
-                            seg_col=feature_col,
-                            seg_name=f"{feature_col}_segment",
-                            bins=bins,
-                            bin_labels=bin_labels,
+                    # Check if column is categorical or numeric
+                    if feature_col in categorical_features:
+                        # Use categorical segmentation for categorical features
+                        mapping = feature_config.get("mapping")  # Optional mapping
+                        segments.append(
+                            SegmentCategorical(
+                                seg_col=feature_col,
+                                seg_name=f"{feature_col}_segment",
+                                mapping=mapping,
+                            )
                         )
-                    )
+                    else:
+                        # Use numeric segmentation for continuous features
+                        segments.append(
+                            SegmentCustom(
+                                seg_col=feature_col,
+                                seg_name=f"{feature_col}_segment",
+                                bins=bins,
+                                bin_labels=bin_labels,
+                            )
+                        )
 
         return segments
 
