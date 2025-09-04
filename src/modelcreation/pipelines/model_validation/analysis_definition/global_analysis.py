@@ -25,6 +25,7 @@ class GlobalAnalysesRunner(BaseAnalysis):
         target_column: str,
         prediction_column: str,
         old_model_column: Optional[str],
+        weight_column: Optional[str] = None,
         params: Optional[dict],
         run_id: Optional[str],
         resolved_run_extractor,
@@ -39,6 +40,7 @@ class GlobalAnalysesRunner(BaseAnalysis):
         self.target_column = target_column
         self.prediction_column = prediction_column
         self.old_model_column = old_model_column
+        self.weight_column = weight_column
         self.params = params or {}
         self.run_id = run_id
         self._extract_run_id = resolved_run_extractor

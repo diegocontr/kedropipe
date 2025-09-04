@@ -64,20 +64,19 @@ def run_global_analyses(
     """Run global analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.global_analysis import build_and_run_global_analyses
 
-    # Resolve columns precedence: feat_conf > explicit args > global_analysis_config
-    if feat_conf:
-        target_column = feat_conf.get("target", target_column)
-        old_model_column = feat_conf.get("old_model", old_model_column)
-        prediction_column = feat_conf.get("prediction", prediction_column)
-    if target_column is None and global_analysis_config:
-        target_column = global_analysis_config.get("target_column")
-    if prediction_column is None and global_analysis_config:
-        prediction_column = global_analysis_config.get("prediction_column")
-    if old_model_column is None and global_analysis_config:
-        old_model_column = global_analysis_config.get("old_model_column")
+    # Extract columns from feat_conf
+    target_column = feat_conf.get("target", target_column)
+    old_model_column = feat_conf.get("old_model", old_model_column)
+    prediction_column = feat_conf.get("prediction", prediction_column)
+    weight_column = feat_conf.get("weight") if feat_conf else None
 
     if target_column is None or prediction_column is None:
         raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
+
+    # Check if global analysis is enabled
+    if not global_analysis_config.get("enabled", True):
+        print("[run_global_analyses] Skipping global analysis - disabled in configuration")
+        return
 
     # Merge all available parameters for the analysis
     merged_params = {**(global_analysis_config or {})}
@@ -92,6 +91,7 @@ def run_global_analyses(
         target_column=target_column,
         prediction_column=prediction_column,
         old_model_column=old_model_column,
+        weight_column=weight_column,
         params=merged_params,
         run_id=run_id,
     resolved_run_extractor=_extract_run_id,
@@ -112,19 +112,19 @@ def run_segmented_analyses(
     """Run segmented analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.segmented_analysis import build_and_run_segmented_analyses
 
-    if feat_conf:
-        target_column = feat_conf.get("target", target_column)
-        old_model_column = feat_conf.get("old_model", old_model_column)
-        prediction_column = feat_conf.get("prediction", prediction_column)
-    if target_column is None and segmented_analysis_config:
-        target_column = segmented_analysis_config.get("target_column")
-    if prediction_column is None and segmented_analysis_config:
-        prediction_column = segmented_analysis_config.get("prediction_column")
-    if old_model_column is None and segmented_analysis_config:
-        old_model_column = segmented_analysis_config.get("old_model_column")
+    # Extract columns from feat_conf
+    target_column = feat_conf.get("target", target_column)
+    old_model_column = feat_conf.get("old_model", old_model_column)
+    prediction_column = feat_conf.get("prediction", prediction_column)
+    weight_column = feat_conf.get("weight") if feat_conf else None
 
     if target_column is None or prediction_column is None:
         raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
+
+    # Check if segmented analysis is enabled
+    if not segmented_analysis_config.get("enabled", True):
+        print("[run_segmented_analyses] Skipping segmented analysis - disabled in configuration")
+        return
 
     # Merge all available parameters for the analysis
     merged_params = {**(segmented_analysis_config or {})}
@@ -143,6 +143,7 @@ def run_segmented_analyses(
         target_column=target_column,
         prediction_column=prediction_column,
         old_model_column=old_model_column,
+        weight_column=weight_column,
         params=merged_params,
         run_id=run_id,
     resolved_run_extractor=_extract_run_id,
@@ -164,19 +165,19 @@ def run_pdp_analyses(
     """Run PDP analyses using mandatory parquet paths and trained model."""
     from .analysis_definition.pdp_analysis import build_and_run_pdp_analyses
 
-    if feat_conf:
-        target_column = feat_conf.get("target", target_column)
-        old_model_column = feat_conf.get("old_model", old_model_column)
-        prediction_column = feat_conf.get("prediction", prediction_column)
-    if target_column is None and pdp_analysis_config:
-        target_column = pdp_analysis_config.get("target_column")
-    if prediction_column is None and pdp_analysis_config:
-        prediction_column = pdp_analysis_config.get("prediction_column")
-    if old_model_column is None and pdp_analysis_config:
-        old_model_column = pdp_analysis_config.get("old_model_column")
+    # Extract columns from feat_conf
+    target_column = feat_conf.get("target", target_column)
+    old_model_column = feat_conf.get("old_model", old_model_column)
+    prediction_column = feat_conf.get("prediction", prediction_column)
+    weight_column = feat_conf.get("weight") if feat_conf else None
 
     if target_column is None or prediction_column is None:
         raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
+
+    # Check if PDP analysis is enabled
+    if not pdp_analysis_config.get("enabled", True):
+        print("[run_pdp_analyses] Skipping PDP analysis - disabled in configuration")
+        return
 
     # Merge all available parameters for the analysis
     merged_params = {**(pdp_analysis_config or {})}
@@ -192,6 +193,7 @@ def run_pdp_analyses(
         prediction_column=prediction_column,
         trained_model=trained_model,
         old_model_column=old_model_column,
+        weight_column=weight_column,
         params=merged_params,
         run_id=run_id,
     resolved_run_extractor=_extract_run_id,

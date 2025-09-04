@@ -47,7 +47,7 @@ model_validation:
       - age
       - income
       - credit_score
-    categorical_features: ["credit_score"]  # Example: treat credit_score as categorical to test the functionality
+    categorical_features: []  # List of categorical feature names - these will be treated as categorical in segmented analysis
   # MLflow experiment name for validation run (new). If null, a timestamped name will be generated.
   mlflow_experiment_name: null
   # File paths for datasets with predictions (used by path-based global analyses)
@@ -64,6 +64,7 @@ model_validation:
 
 # Analysis-specific configurations
 global_analysis_config:
+  enabled: true  # Set to false to skip global analysis
   plot_theme:
     annotation_fontsize: 14
     style: "ggplot"
@@ -73,6 +74,7 @@ global_analysis_config:
   calibration_bins: 10  # Number of percentile bins for calibration plot
 
 segmented_analysis_config:
+  enabled: true  # Set to false to skip segmented analysis
   plot_theme:
     annotation_fontsize: 14
     style: "ggplot"
@@ -109,6 +111,7 @@ segmented_analysis_config:
       bin_labels: ["Poor", "Fair", "Good", "Excellent"]
 
 pdp_analysis_config:
+  enabled: true  # Set to false to skip PDP analysis
   plot_theme:
     annotation_fontsize: 14
     style: "ggplot"
