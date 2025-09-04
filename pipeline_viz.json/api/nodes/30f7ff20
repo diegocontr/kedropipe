@@ -1,0 +1,97 @@
+{
+  "parameters": {
+    "model_validation": {
+      "target_column": "target_B",
+      "prediction_column": "prediction_new",
+      "weight_column": "weight",
+      "old_model_column": "prediction_B",
+      "feat_conf": {
+        "target": "target_B",
+        "weight": "weight",
+        "old_model": "prediction_B"
+      },
+      "mlflow_experiment_name": null,
+      "train_with_preds_path": "data/processed/train_dataset_with_preds.parquet",
+      "test_with_preds_path": "data/processed/test_dataset_with_preds.parquet",
+      "use_mlflow": true,
+      "feature_binning": {
+        "default_bins": 5,
+        "age": {
+          "bins": [
+            18,
+            30,
+            45,
+            60,
+            75
+          ],
+          "labels": [
+            "18-29",
+            "30-44",
+            "45-59",
+            "60+"
+          ]
+        },
+        "credit_score": {
+          "bins": [
+            300,
+            550,
+            650,
+            750,
+            850
+          ],
+          "labels": [
+            "Poor",
+            "Fair",
+            "Good",
+            "Excellent"
+          ]
+        }
+      },
+      "segments": {
+        "age_group": {
+          "bins": [
+            18,
+            30,
+            45,
+            60,
+            75
+          ],
+          "bin_labels": [
+            "18-29",
+            "30-44",
+            "45-59",
+            "60+"
+          ]
+        },
+        "income_level": {
+          "bins": 5
+        },
+        "credit_score_group": {
+          "bins": [
+            300,
+            500,
+            650,
+            750,
+            850
+          ],
+          "bin_labels": [
+            "Poor",
+            "Fair",
+            "Good",
+            "Excellent"
+          ]
+        }
+      },
+      "bootstrap": true,
+      "old_model_noise_factor": 0.15,
+      "calibration_bins": 10,
+      "mlflow_run_id": null,
+      "plot_theme": {
+        "annotation_fontsize": 14,
+        "style": "ggplot",
+        "target_color": "#1E1D25",
+        "h_line_style": ":"
+      }
+    }
+  }
+}

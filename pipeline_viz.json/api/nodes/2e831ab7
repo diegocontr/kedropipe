@@ -1,0 +1,5 @@
+{
+  "parameters": {
+    "model_validation.prediction_column": "prediction_new"
+  }
+}

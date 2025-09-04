@@ -5,21 +5,17 @@ from .nodes import (
     run_global_analyses,
     run_pdp_analyses,
     run_segmented_analyses,
+    start_mlflow_run,
 )
-
-
-def resolve_mlflow_run_id(run_id: str | None) -> str:
-    return run_id or ""
-
 
 def create_pipeline(**kwargs):
     return Pipeline(
         [
             node(
-                func=resolve_mlflow_run_id,
-                inputs="params:model_validation.mlflow_run_id",
+                func=start_mlflow_run,
+                inputs="params:model_validation.mlflow_experiment_name",
                 outputs="resolved_mlflow_run_id",
-                name="resolve_mlflow_run_id",
+                name="start_mlflow_run",
                 tags=["memory_only"],
             ),
             node(
@@ -41,11 +37,8 @@ def create_pipeline(**kwargs):
                 inputs={
                     "train_df_path": "params:model_validation.train_with_preds_path",
                     "test_df_path": "params:model_validation.test_with_preds_path",
-                    "target_column": "params:model_validation.target_column",
-                    "prediction_column": "params:model_validation.prediction_column",
-                    "old_model_column": "params:model_validation.old_model_column",
+                    "feat_conf": "params:model_validation.feat_conf",
                     "run_id": "resolved_mlflow_run_id",
-                    "model_metrics": "model_metrics",
                     "model_validation_params": "params:model_validation",
                     "data_preparation_params": "params:data_preparation",
                 },
@@ -57,11 +50,8 @@ def create_pipeline(**kwargs):
                 inputs={
                     "train_df_path": "params:model_validation.train_with_preds_path",
                     "test_df_path": "params:model_validation.test_with_preds_path",
-                    "target_column": "params:model_validation.target_column",
-                    "prediction_column": "params:model_validation.prediction_column",
-                    "old_model_column": "params:model_validation.old_model_column",
+                    "feat_conf": "params:model_validation.feat_conf",
                     "run_id": "resolved_mlflow_run_id",
-                    "model_metrics": "model_metrics",
                     "model_validation_params": "params:model_validation",
                     "data_preparation_params": "params:data_preparation",
                 },
@@ -73,12 +63,9 @@ def create_pipeline(**kwargs):
                 inputs={
                     "train_df_path": "params:model_validation.train_with_preds_path",
                     "test_df_path": "params:model_validation.test_with_preds_path",
-                    "target_column": "params:model_validation.target_column",
-                    "prediction_column": "params:model_validation.prediction_column",
+                    "feat_conf": "params:model_validation.feat_conf",
                     "trained_model": "trained_model",
-                    "old_model_column": "params:model_validation.old_model_column",
                     "run_id": "resolved_mlflow_run_id",
-                    "model_metrics": "model_metrics",
                     "model_validation_params": "params:model_validation",
                     "data_preparation_params": "params:data_preparation",
                 },

@@ -28,7 +28,6 @@ class SegmentedAnalysesRunner(BaseAnalysis):
         params: Optional[dict],
         run_id: Optional[str],
         resolved_run_extractor,
-        model_metrics: Optional[Any],
     ) -> None:
         """Initialize the segmented analyses runner (path-based ingestion)."""
         from model_monitoring.plotting.core import set_plot_theme
@@ -42,14 +41,12 @@ class SegmentedAnalysesRunner(BaseAnalysis):
         self.old_model_column = old_model_column
         self.params = params or {}
         self.run_id = run_id
-        self.model_metrics = model_metrics
         self._extract_run_id = resolved_run_extractor
 
         theme = self.params.get("plot_theme") or {}
         if theme:
             set_plot_theme(theme)
 
-        # Determine column availability using parquet schema (no full data load)
         import pyarrow.parquet as pq
 
         def _schema_cols(path: str) -> set[str]:
@@ -63,39 +60,27 @@ class SegmentedAnalysesRunner(BaseAnalysis):
 
         weight_col = self.params.get("weight_column")
         if weight_col and weight_col not in self._train_cols:
-            weight_col = None  # silently drop invalid
-        self.weight_col = weight_col  # may be None
+            weight_col = None
+        self.weight_col = weight_col
 
-        self.resolved_run = self._extract_run_id(self.run_id, self.model_metrics)
+        self.resolved_run = self._extract_run_id(self.run_id)
 
-        # Build prediction dictionary - using simple structure for segmented analysis
         self.pred_dict = {
             "target_model": {
-                "sel_col": weight_col or "weight",  # fallback to "weight" if None
+                "sel_col": weight_col or "weight",
                 "pred_col": prediction_column,
                 "target_col": target_column,
             }
         }
-
-        # If old model is available, add it to pred_dict
-        if (
-            old_model_column
-            and old_model_column in self._train_cols
-            and old_model_column in self._test_cols
-        ):
+        if old_model_column and old_model_column in self._train_cols and old_model_column in self._test_cols:
             self.pred_dict["old_model"] = {
                 "sel_col": weight_col or "weight",
                 "pred_col": old_model_column,
                 "target_col": target_column,
             }
 
-        # Build segmentation strategies
         self.segments = self._build_segments()
-
-        # Build statistics configuration
         self.func_dict = self._build_func_dict()
-
-        # Build report panels configuration
         self.report_panels = self._build_report_panels()
 
     def _build_segments(self) -> List[Any]:

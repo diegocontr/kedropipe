@@ -1,0 +1,5 @@
+{
+  "parameters": {
+    "data_preparation.target_column": "target_B"
+  }
+}

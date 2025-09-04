@@ -37,6 +37,13 @@ model_validation:
   prediction_column: prediction_new
   weight_column: weight
   old_model_column: "prediction_B"  
+  # Consolidated feature configuration (new). Prefer using this dict instead of individual params above.
+  feat_conf:
+    target: target_B
+    weight: weight
+    old_model: prediction_B
+  # MLflow experiment name for validation run (new). If null, a timestamped name will be generated.
+  mlflow_experiment_name: null
   # File paths for datasets with predictions (used by path-based global analyses)
   train_with_preds_path: data/processed/train_dataset_with_preds.parquet
   test_with_preds_path: data/processed/test_dataset_with_preds.parquet

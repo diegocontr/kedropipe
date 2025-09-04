@@ -1,0 +1,5 @@
+{
+  "parameters": {
+    "model_validation.old_model_noise_factor": 0.15
+  }
+}

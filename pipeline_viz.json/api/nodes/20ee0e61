@@ -1,0 +1,9 @@
+{
+  "parameters": {
+    "model_validation.feat_conf": {
+      "target": "target_B",
+      "weight": "weight",
+      "old_model": "prediction_B"
+    }
+  }
+}

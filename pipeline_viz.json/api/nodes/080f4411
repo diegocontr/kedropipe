@@ -1,0 +1,13 @@
+{
+  "parameters": {
+    "data_preparation": {
+      "feature_columns": [
+        "age",
+        "income",
+        "credit_score"
+      ],
+      "target_column": "target_B",
+      "old_model_column": "prediction_B"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "code": "def generate_predictions(\n    trained_model,\n    test_dataset: pd.DataFrame,\n    train_dataset: pd.DataFrame,\n    prediction_column: str,\n    old_model_column: str | None = None,\n    old_model_noise_factor: float | None = None,\n    random_state: int | None = None,\n) -> tuple[pd.DataFrame, pd.DataFrame]:\n    \"\"\"Add prediction column to both train and test datasets.\n\n    Optionally create a synthetic old model prediction column (old_model_column) for\n    side-by-side comparison in analyses if it does not already exist.\n\n    Synthetic old model logic:\n      - If old_model_noise_factor > 0: old_pred = new_pred * (1 + Normal(0, noise_factor)).\n      - Else: old_pred = new_pred * 0.9 (simple under-performing baseline).\n    Values are clipped at 0 for non-negative targets (Poisson-like use case).\n    \"\"\"\n    rng = np.random.default_rng(random_state)\n\n    train_out = train_dataset.copy()\n    test_out = test_dataset.copy()\n\n    # Use only feature columns present in model if attribute exists\n    try:\n        feature_names = getattr(trained_model, 'feature_names_', None)\n        if feature_names:\n            train_pred_input = train_dataset[feature_names]\n            test_pred_input = test_dataset[feature_names]\n        else:\n            train_pred_input = train_dataset\n            test_pred_input = test_dataset\n    except Exception:\n        train_pred_input = train_dataset\n        test_pred_input = test_dataset\n\n    train_out[prediction_column] = trained_model.predict(train_pred_input)\n    test_out[prediction_column] = trained_model.predict(test_pred_input)\n\n    # Add weight column if missing (defaults to 1.0 for all rows)\n    if \"weight\" not in train_out.columns:\n        train_out[\"weight\"] = 1.0\n    if \"weight\" not in test_out.columns:\n        test_out[\"weight\"] = 1.0\n\n    # Do NOT synthesize old model predictions automatically; only use if column already exists\n    if old_model_column:\n        missing = []\n        if old_model_column not in train_out.columns:\n            missing.append(\"train\")\n        if old_model_column not in test_out.columns:\n            missing.append(\"test\")\n        if missing:\n            print(\n                f\"Warning: old_model_column '{old_model_column}' missing in {', '.join(missing)} dataset(s). Global analyses will show only the new model.\"\n            )\n\n    print(f\"[generate_predictions] Output train columns: {list(train_out.columns)}\")\n    print(f\"[generate_predictions] Output test columns: {list(test_out.columns)}\")\n    if old_model_column:\n        present_train = old_model_column in train_out.columns\n        present_test = old_model_column in test_out.columns\n        print(f\"[generate_predictions] old_model_column='{old_model_column}' train_present={present_train} test_present={present_test}\")\n    return train_out, test_out\n",
+  "filepath": "kedropipe/src/modelcreation/pipelines/model_validation/nodes.py",
+  "parameters": {
+    "model_validation.prediction_column": "prediction_new",
+    "model_validation.old_model_column": "prediction_B",
+    "model_validation.old_model_noise_factor": 0.15,
+    "model_training.random_state": 42
+  },
+  "run_command": "kedro run --to-nodes='generate_predictions'",
+  "inputs": [
+    "trained_model",
+    "test_dataset",
+    "train_dataset",
+    "params:model_validation.prediction_column",
+    "params:model_validation.old_model_column",
+    "params:model_validation.old_model_noise_factor",
+    "params:model_training.random_state"
+  ],
+  "outputs": [
+    "train_dataset_with_preds",
+    "test_dataset_with_preds"
+  ]
+}

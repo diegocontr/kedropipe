@@ -1,0 +1,5 @@
+{
+  "parameters": {
+    "model_validation.old_model_column": "prediction_B"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "code": "def separate_features_target(\n    train_dataset: pd.DataFrame,\n    test_dataset: pd.DataFrame,\n    target_column: str,\n    feature_columns_str: str,\n) -> Tuple[pd.DataFrame, pd.DataFrame, str, str]:\n    \"\"\"Split full train/test DataFrames into feature matrices and target CSV strings.\n\n    Only the originally declared feature columns (feature_columns_str) are used for X;\n    any passthrough/reference columns (e.g. old model predictions) remain in train/test\n    datasets for later analyses but are excluded from model training.\n    \"\"\"\n    if target_column not in train_dataset.columns:\n        raise ValueError(f\"target_column '{target_column}' not in train_dataset\")\n    if target_column not in test_dataset.columns:\n        raise ValueError(f\"target_column '{target_column}' not in test_dataset\")\n\n    declared_features = [c for c in feature_columns_str.split(',') if c]\n    feature_cols = [c for c in declared_features if c in train_dataset.columns]\n    X_train = train_dataset[feature_cols].copy()\n    X_test = test_dataset[feature_cols].copy()\n\n    y_train = train_dataset[target_column]\n    y_test = test_dataset[target_column]\n\n    y_train_str = y_train.to_csv(index=False)\n    y_test_str = y_test.to_csv(index=False)\n    logger.info(\n        \"Separated features/target: features=%d target=%s\", len(feature_cols), target_column\n    )\n    return X_train, X_test, y_train_str, y_test_str\n",
+  "filepath": "kedropipe/src/modelcreation/pipelines/model_training/nodes.py",
+  "parameters": {
+    "data_preparation.target_column": "target_B"
+  },
+  "run_command": "kedro run --to-nodes='separate_features_target_node'",
+  "inputs": [
+    "train_dataset",
+    "test_dataset",
+    "params:data_preparation.target_column",
+    "feature_columns"
+  ],
+  "outputs": [
+    "X_train",
+    "X_test",
+    "y_train",
+    "y_test"
+  ]
+}

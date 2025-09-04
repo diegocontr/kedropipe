@@ -65,10 +65,17 @@ def setup_mlflow_experiment(params: Dict[str, Any]) -> str:
         
     except Exception as e:
         logger.error(f"Failed to setup MLflow experiment: {e}")
-        # Use default experiment as fallback
-        logger.warning("Falling back to default experiment (ID=0)")
-        mlflow.set_experiment(experiment_id="0")
-        return "0"
+        # Robust fallback: create or get a named fallback experiment
+        fallback_name = "kedropipe_fallback"
+        try:
+            mlflow.set_experiment(fallback_name)
+            exp = mlflow.get_experiment_by_name(fallback_name)
+            if exp:
+                return str(exp.experiment_id)
+        except Exception as inner:
+            logger.warning(f"Fallback experiment creation failed: {inner}")
+        # Last resort: start an anonymous run (no explicit experiment id)
+        return ""
 
 
 def split_data(
@@ -183,7 +190,14 @@ def train_catboost_model(
     experiment_id = setup_mlflow_experiment(params)
     logger.info(f"Using MLflow experiment ID: {experiment_id}")
     
-    # Start MLflow run
+    # End any existing active run before starting training run
+    if mlflow.active_run():
+        try:
+            mlflow.end_run()
+        except Exception as exc:
+            logger.debug("Could not end pre-existing MLflow run: %s", exc)
+    
+    # Start MLflow run for training
     with mlflow.start_run(run_name="catboost_training"):
         # Log parameters
         mlflow.log_param("loss_function", loss_function)

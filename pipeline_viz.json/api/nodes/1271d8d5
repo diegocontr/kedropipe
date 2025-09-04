@@ -1,0 +1,125 @@
+{
+  "code": "def run_global_analyses(\n    *,\n    train_df_path: str,\n    test_df_path: str,\n    # New consolidated feature configuration dict. Expected keys: target, weight (optional), old_model (optional), prediction (optional)\n    feat_conf: Optional[dict] = None,\n    # Deprecated explicit params (kept for backward compatibility)\n    target_column: Optional[str] = None,\n    prediction_column: Optional[str] = None,\n    old_model_column: Optional[str] = None,\n    run_id: Optional[str] = None,\n    model_validation_params: Optional[dict] = None,\n    data_preparation_params: Optional[dict] = None,\n) -> None:\n    \"\"\"Run global analyses using mandatory parquet paths (defined in parameters).\"\"\"\n    from .analysis_definition.global_analysis import build_and_run_global_analyses\n\n    # Resolve columns precedence: feat_conf > explicit args > model_validation_params\n    if feat_conf:\n        target_column = feat_conf.get(\"target\", target_column)\n        old_model_column = feat_conf.get(\"old_model\", old_model_column)\n        prediction_column = feat_conf.get(\"prediction\", prediction_column)\n    if target_column is None and model_validation_params:\n        target_column = model_validation_params.get(\"target_column\")\n    if prediction_column is None and model_validation_params:\n        prediction_column = model_validation_params.get(\"prediction_column\")\n    if old_model_column is None and model_validation_params:\n        old_model_column = model_validation_params.get(\"old_model_column\")\n\n    if target_column is None or prediction_column is None:\n        raise ValueError(\"target_column and prediction_column must be provided via feat_conf or legacy params.\")\n\n    # Merge all available parameters for the analysis\n    merged_params = {**(model_validation_params or {})}\n    if data_preparation_params:\n        merged_params[\"data_preparation\"] = data_preparation_params\n\n    build_and_run_global_analyses(\n        train_df_path=train_df_path,\n        test_df_path=test_df_path,\n        target_column=target_column,\n        prediction_column=prediction_column,\n        old_model_column=old_model_column,\n        params=merged_params,\n        run_id=run_id,\n    resolved_run_extractor=_extract_run_id,\n    )\n",
+  "filepath": "kedropipe/src/modelcreation/pipelines/model_validation/nodes.py",
+  "parameters": {
+    "model_validation.train_with_preds_path": "data/processed/train_dataset_with_preds.parquet",
+    "model_validation.test_with_preds_path": "data/processed/test_dataset_with_preds.parquet",
+    "model_validation.feat_conf": {
+      "target": "target_B",
+      "weight": "weight",
+      "old_model": "prediction_B"
+    },
+    "model_validation": {
+      "target_column": "target_B",
+      "prediction_column": "prediction_new",
+      "weight_column": "weight",
+      "old_model_column": "prediction_B",
+      "feat_conf": {
+        "target": "target_B",
+        "weight": "weight",
+        "old_model": "prediction_B"
+      },
+      "mlflow_experiment_name": null,
+      "train_with_preds_path": "data/processed/train_dataset_with_preds.parquet",
+      "test_with_preds_path": "data/processed/test_dataset_with_preds.parquet",
+      "use_mlflow": true,
+      "feature_binning": {
+        "default_bins": 5,
+        "age": {
+          "bins": [
+            18,
+            30,
+            45,
+            60,
+            75
+          ],
+          "labels": [
+            "18-29",
+            "30-44",
+            "45-59",
+            "60+"
+          ]
+        },
+        "credit_score": {
+          "bins": [
+            300,
+            550,
+            650,
+            750,
+            850
+          ],
+          "labels": [
+            "Poor",
+            "Fair",
+            "Good",
+            "Excellent"
+          ]
+        }
+      },
+      "segments": {
+        "age_group": {
+          "bins": [
+            18,
+            30,
+            45,
+            60,
+            75
+          ],
+          "bin_labels": [
+            "18-29",
+            "30-44",
+            "45-59",
+            "60+"
+          ]
+        },
+        "income_level": {
+          "bins": 5
+        },
+        "credit_score_group": {
+          "bins": [
+            300,
+            500,
+            650,
+            750,
+            850
+          ],
+          "bin_labels": [
+            "Poor",
+            "Fair",
+            "Good",
+            "Excellent"
+          ]
+        }
+      },
+      "bootstrap": true,
+      "old_model_noise_factor": 0.15,
+      "calibration_bins": 10,
+      "mlflow_run_id": null,
+      "plot_theme": {
+        "annotation_fontsize": 14,
+        "style": "ggplot",
+        "target_color": "#1E1D25",
+        "h_line_style": ":"
+      }
+    },
+    "data_preparation": {
+      "feature_columns": [
+        "age",
+        "income",
+        "credit_score"
+      ],
+      "target_column": "target_B",
+      "old_model_column": "prediction_B"
+    }
+  },
+  "run_command": "kedro run --to-nodes='run_global_analyses'",
+  "inputs": [
+    "params:model_validation.train_with_preds_path",
+    "params:model_validation.test_with_preds_path",
+    "params:model_validation.feat_conf",
+    "resolved_mlflow_run_id",
+    "params:model_validation",
+    "params:data_preparation"
+  ],
+  "outputs": []
+}

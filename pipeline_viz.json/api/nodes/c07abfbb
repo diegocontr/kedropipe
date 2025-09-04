@@ -1,0 +1,64 @@
+{
+  "type": "pandas.parquet_dataset.ParquetDataset",
+  "filepath": "/home/diego/Dropbox/DropboxGit/kedropipe/data/processed/test_dataset.parquet",
+  "run_command": "kedro run --to-outputs=test_dataset",
+  "preview": {
+    "index": [
+      6252,
+      4684,
+      1731,
+      4742,
+      4521
+    ],
+    "columns": [
+      "age",
+      "income",
+      "credit_score",
+      "target_B",
+      "prediction_B"
+    ],
+    "data": [
+      [
+        47,
+        59303.271080274324,
+        694,
+        0,
+        0.0804523753544834
+      ],
+      [
+        44,
+        160474.30529595696,
+        332,
+        0,
+        0.336127244733571
+      ],
+      [
+        23,
+        263949.02110978717,
+        788,
+        0,
+        0.1612843614935504
+      ],
+      [
+        38,
+        59470.76994539508,
+        744,
+        1,
+        0.05072753285626547
+      ],
+      [
+        54,
+        241596.17917084496,
+        829,
+        0,
+        0.4457232374740792
+      ]
+    ]
+  },
+  "preview_type": "TablePreview",
+  "stats": {
+    "rows": 2000,
+    "columns": 5,
+    "file_size": 59660
+  }
+}

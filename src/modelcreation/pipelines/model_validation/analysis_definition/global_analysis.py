@@ -28,7 +28,6 @@ class GlobalAnalysesRunner(BaseAnalysis):
         params: Optional[dict],
         run_id: Optional[str],
         resolved_run_extractor,
-        model_metrics: Optional[Any],
     ) -> None:
         """Initialize the global analyses runner (path-based ingestion)."""
         from model_monitoring.plotting.core import set_plot_theme
@@ -42,7 +41,6 @@ class GlobalAnalysesRunner(BaseAnalysis):
         self.old_model_column = old_model_column
         self.params = params or {}
         self.run_id = run_id
-        self.model_metrics = model_metrics
         self._extract_run_id = resolved_run_extractor
 
         theme = self.params.get("plot_theme") or {}
@@ -67,19 +65,14 @@ class GlobalAnalysesRunner(BaseAnalysis):
         self.weight_col = weight_col  # may be None
 
         self.calibration_bins = int(self.params.get("calibration_bins", 20))
-        self.resolved_run = self._extract_run_id(self.run_id, self.model_metrics)
+        self.resolved_run = self._extract_run_id(self.run_id)
 
         # Build model spec. Always include new model. Optionally add old model if provided.
         models_cfg: Dict[str, Dict[str, Any]] = {
             "New model": {"pred_col": prediction_column, "name": "new"}
         }
-        if old_model_column:
-            if (
-                old_model_column in self._train_cols
-                and old_model_column in self._test_cols
-            ):
-                models_cfg["Old model"] = {"pred_col": old_model_column, "name": "old"}
-            # else silently ignore
+        if old_model_column and old_model_column in self._train_cols and old_model_column in self._test_cols:
+            models_cfg["Old model"] = {"pred_col": old_model_column, "name": "old"}
         self.models_cfg = models_cfg
 
         obs = {"target_col": target_column}

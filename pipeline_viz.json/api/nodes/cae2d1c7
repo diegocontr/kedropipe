@@ -1,0 +1,48 @@
+{
+  "type": "pandas.parquet_dataset.ParquetDataset",
+  "filepath": "/home/diego/Dropbox/DropboxGit/kedropipe/data/processed/X_train.parquet",
+  "run_command": "kedro run --to-outputs=X_train",
+  "preview": {
+    "index": [
+      9254,
+      1561,
+      1670,
+      6087,
+      6669
+    ],
+    "columns": [
+      "age",
+      "income",
+      "credit_score"
+    ],
+    "data": [
+      [
+        54,
+        43997.853438495404,
+        335
+      ],
+      [
+        34,
+        75639.2304221983,
+        352
+      ],
+      [
+        39,
+        58048.46448687038,
+        410
+      ],
+      [
+        69,
+        69373.1886920571,
+        481
+      ],
+      [
+        58,
+        68861.20220118319,
+        506
+      ]
+    ]
+  },
+  "preview_type": "TablePreview",
+  "stats": null
+}

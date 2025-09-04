@@ -1,54 +1,84 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
+from datetime import datetime
+import logging
+import mlflow
 import numpy as np
 import pandas as pd
 
 # (ModelAnalysis now only used inside analysis_definition builders; no direct import needed here.)
 
 
-def _extract_run_id(run_id: Optional[str], model_metrics: Optional[Any]) -> Optional[str]:
-    """Best-effort extraction of run_id from explicit param or model_metrics JSON/text."""
-    if run_id:
-        return run_id
-    if model_metrics is None:
-        return None
-    try:
-        if isinstance(model_metrics, str):
-            import json as _json
-
-            data = _json.loads(model_metrics)
-        elif isinstance(model_metrics, dict):
-            data = model_metrics
-        else:
-            return None
-        return data.get("mlflow_run_id")
-    except Exception:
-        return None
+def _extract_run_id(run_id: Optional[str]) -> Optional[str]:
+    """Identity extractor kept for compatibility (metrics-based fallback removed)."""
+    return run_id
 
 
 def _binarize_target(series, threshold: float) -> pd.Series:
     return (series > threshold).astype(int)
 
 
+def start_mlflow_run(experiment_name: str | None) -> str:
+    """Ensure an experiment is selected and return an active MLflow run id.
+
+    Rules:
+      - If a run is already active (e.g. training kept it open or prior node), reuse it.
+      - Otherwise start a new run in the selected experiment.
+    This prevents duplicate mlflow.start_run() calls causing 'already active' errors.
+    """
+    if not experiment_name:
+        experiment_name = f"validation_experiment_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+    mlflow.set_experiment(experiment_name)
+    active = mlflow.active_run()
+    if active:
+        return active.info.run_id
+    run = mlflow.start_run()
+    return run.info.run_id
+
+
+def end_mlflow_run(run_id: str | None = None) -> None:  # run_id accepted for dependency but unused
+    """End the active MLflow run if present."""
+    active = mlflow.active_run()
+    if active:
+        try:
+            mlflow.end_run()
+        except Exception as exc:
+            logging.debug("Failed to end MLflow run %s: %s", active.info.run_id, exc)
+
+
 def run_global_analyses(
     *,
     train_df_path: str,
     test_df_path: str,
-    target_column: str,
-    prediction_column: str,
+    # New consolidated feature configuration dict. Expected keys: target, weight (optional), old_model (optional), prediction (optional)
+    feat_conf: Optional[dict] = None,
+    # Deprecated explicit params (kept for backward compatibility)
+    target_column: Optional[str] = None,
+    prediction_column: Optional[str] = None,
     old_model_column: Optional[str] = None,
     run_id: Optional[str] = None,
-    model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
     data_preparation_params: Optional[dict] = None,
 ) -> None:
     """Run global analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.global_analysis import build_and_run_global_analyses
 
+    # Resolve columns precedence: feat_conf > explicit args > model_validation_params
+    if feat_conf:
+        target_column = feat_conf.get("target", target_column)
+        old_model_column = feat_conf.get("old_model", old_model_column)
+        prediction_column = feat_conf.get("prediction", prediction_column)
+    if target_column is None and model_validation_params:
+        target_column = model_validation_params.get("target_column")
+    if prediction_column is None and model_validation_params:
+        prediction_column = model_validation_params.get("prediction_column")
     if old_model_column is None and model_validation_params:
         old_model_column = model_validation_params.get("old_model_column")
+
+    if target_column is None or prediction_column is None:
+        raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
 
     # Merge all available parameters for the analysis
     merged_params = {**(model_validation_params or {})}
@@ -63,8 +93,7 @@ def run_global_analyses(
         old_model_column=old_model_column,
         params=merged_params,
         run_id=run_id,
-        resolved_run_extractor=_extract_run_id,
-        model_metrics=model_metrics,
+    resolved_run_extractor=_extract_run_id,
     )
 
 
@@ -72,19 +101,30 @@ def run_segmented_analyses(
     *,
     train_df_path: str,
     test_df_path: str,
-    target_column: str,
-    prediction_column: str,
+    feat_conf: Optional[dict] = None,
+    target_column: Optional[str] = None,
+    prediction_column: Optional[str] = None,
     old_model_column: Optional[str] = None,
     run_id: Optional[str] = None,
-    model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
     data_preparation_params: Optional[dict] = None,
 ) -> None:
     """Run segmented analyses using mandatory parquet paths (defined in parameters)."""
     from .analysis_definition.segmented_analysis import build_and_run_segmented_analyses
 
+    if feat_conf:
+        target_column = feat_conf.get("target", target_column)
+        old_model_column = feat_conf.get("old_model", old_model_column)
+        prediction_column = feat_conf.get("prediction", prediction_column)
+    if target_column is None and model_validation_params:
+        target_column = model_validation_params.get("target_column")
+    if prediction_column is None and model_validation_params:
+        prediction_column = model_validation_params.get("prediction_column")
     if old_model_column is None and model_validation_params:
         old_model_column = model_validation_params.get("old_model_column")
+
+    if target_column is None or prediction_column is None:
+        raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
 
     # Merge all available parameters for the analysis
     merged_params = {**(model_validation_params or {})}
@@ -99,8 +139,7 @@ def run_segmented_analyses(
         old_model_column=old_model_column,
         params=merged_params,
         run_id=run_id,
-        resolved_run_extractor=_extract_run_id,
-        model_metrics=model_metrics,
+    resolved_run_extractor=_extract_run_id,
     )
 
 
@@ -108,20 +147,31 @@ def run_pdp_analyses(
     *,
     train_df_path: str,
     test_df_path: str,
-    target_column: str,
-    prediction_column: str,
+    feat_conf: Optional[dict] = None,
+    target_column: Optional[str] = None,
+    prediction_column: Optional[str] = None,
     trained_model,
     old_model_column: Optional[str] = None,
     run_id: Optional[str] = None,
-    model_metrics: Optional[Any] = None,
     model_validation_params: Optional[dict] = None,
     data_preparation_params: Optional[dict] = None,
 ) -> None:
     """Run PDP analyses using mandatory parquet paths and trained model."""
     from .analysis_definition.pdp_analysis import build_and_run_pdp_analyses
 
+    if feat_conf:
+        target_column = feat_conf.get("target", target_column)
+        old_model_column = feat_conf.get("old_model", old_model_column)
+        prediction_column = feat_conf.get("prediction", prediction_column)
+    if target_column is None and model_validation_params:
+        target_column = model_validation_params.get("target_column")
+    if prediction_column is None and model_validation_params:
+        prediction_column = model_validation_params.get("prediction_column")
     if old_model_column is None and model_validation_params:
         old_model_column = model_validation_params.get("old_model_column")
+
+    if target_column is None or prediction_column is None:
+        raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
 
     # Merge all available parameters for the analysis
     merged_params = {**(model_validation_params or {})}
@@ -137,8 +187,7 @@ def run_pdp_analyses(
         old_model_column=old_model_column,
         params=merged_params,
         run_id=run_id,
-        resolved_run_extractor=_extract_run_id,
-        model_metrics=model_metrics,
+    resolved_run_extractor=_extract_run_id,
     )
 
 

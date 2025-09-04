@@ -1,0 +1,14 @@
+{
+  "code": "def start_mlflow_run(experiment_name: str | None) -> str:\n    \"\"\"Ensure an experiment is selected and return an active MLflow run id.\n\n    Rules:\n      - If a run is already active (e.g. training kept it open or prior node), reuse it.\n      - Otherwise start a new run in the selected experiment.\n    This prevents duplicate mlflow.start_run() calls causing 'already active' errors.\n    \"\"\"\n    if not experiment_name:\n        experiment_name = f\"validation_experiment_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}\"\n    mlflow.set_experiment(experiment_name)\n    active = mlflow.active_run()\n    if active:\n        return active.info.run_id\n    run = mlflow.start_run()\n    return run.info.run_id\n",
+  "filepath": "kedropipe/src/modelcreation/pipelines/model_validation/nodes.py",
+  "parameters": {
+    "model_validation.mlflow_experiment_name": null
+  },
+  "run_command": "kedro run --to-nodes='start_mlflow_run'",
+  "inputs": [
+    "params:model_validation.mlflow_experiment_name"
+  ],
+  "outputs": [
+    "resolved_mlflow_run_id"
+  ]
+}

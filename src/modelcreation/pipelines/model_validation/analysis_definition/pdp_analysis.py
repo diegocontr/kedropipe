@@ -28,7 +28,6 @@ class PDPAnalysesRunner(BaseAnalysis):
         params: Optional[dict],
         run_id: Optional[str],
         resolved_run_extractor,
-        model_metrics: Optional[Any],
         trained_model: Any,
     ) -> None:
         """Initialize the PDP analyses runner (path-based ingestion)."""
@@ -43,7 +42,6 @@ class PDPAnalysesRunner(BaseAnalysis):
         self.old_model_column = old_model_column
         self.params = params or {}
         self.run_id = run_id
-        self.model_metrics = model_metrics
         self.trained_model = trained_model
         self._extract_run_id = resolved_run_extractor
 
@@ -68,7 +66,7 @@ class PDPAnalysesRunner(BaseAnalysis):
             weight_col = None  # silently drop invalid
         self.weight_col = weight_col  # may be None
 
-        self.resolved_run = self._extract_run_id(self.run_id, self.model_metrics)
+        self.resolved_run = self._extract_run_id(self.run_id)
 
         # Get feature columns from parameters first, then model, then infer
         feature_cols = self.params.get("data_preparation", {}).get("feature_columns")
@@ -78,14 +76,14 @@ class PDPAnalysesRunner(BaseAnalysis):
         if not feature_cols:
             # Fallback: infer from available columns
             excluded_cols = {
-                self.target_column, 
-                self.prediction_column, 
-                self.old_model_column, 
-                self.weight_col, 
+                self.target_column,
+                self.prediction_column,
+                self.old_model_column,
+                self.weight_col,
                 'weight'
             }
             feature_cols = [
-                col for col in self._train_cols 
+                col for col in self._train_cols
                 if col not in excluded_cols and col in self._test_cols
             ]
         self.feature_cols = feature_cols

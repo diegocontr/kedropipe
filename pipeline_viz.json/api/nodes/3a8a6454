@@ -1,0 +1,5 @@
+{
+  "parameters": {
+    "model_validation.train_with_preds_path": "data/processed/train_dataset_with_preds.parquet"
+  }
+}

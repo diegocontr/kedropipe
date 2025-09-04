@@ -1,0 +1,17 @@
+{
+  "parameters": {
+    "model_training": {
+      "test_size": 0.2,
+      "random_state": 42,
+      "old_model_column": "prediction_B",
+      "loss_function": "Poisson",
+      "iterations": 1000,
+      "learning_rate": 0.1,
+      "depth": 6,
+      "early_stopping_rounds": 100,
+      "verbose": 100,
+      "mlflow_experiment_id": null,
+      "mlflow_experiment_name": null
+    }
+  }
+}

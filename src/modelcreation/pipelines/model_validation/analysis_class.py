@@ -81,22 +81,36 @@ class BaseAnalysis:
     # Logging (same as ModelAnalysis simplified) -------------------------
     def save_to_mlflow(self, identifier_run: Optional[str] = None, base_artifact_path: Optional[str] = None) -> None:
         artifact_root = base_artifact_path or self._artifact_root
-        active = mlflow.active_run()
-        need_close = False
-        if identifier_run:
-            if not active or active.info.run_id != identifier_run:
-                mlflow.start_run(run_id=identifier_run)
-        elif not active:
+        
+        # Debug logging
+        active_run = mlflow.active_run()
+        print(f"[DEBUG BaseAnalysis.save_to_mlflow] identifier_run: {identifier_run}")
+        print(f"[DEBUG BaseAnalysis.save_to_mlflow] active_run: {active_run.info.run_id if active_run else None}")
+        print(f"[DEBUG BaseAnalysis.save_to_mlflow] artifact_root: {artifact_root}")
+        
+        # If no active run but we have a specific run_id, try to restart that validation run
+        if not active_run and identifier_run:
+            try:
+                # Find validation experiment and restart the run
+                from mlflow.tracking import MlflowClient
+                client = MlflowClient()
+                run = client.get_run(identifier_run)
+                if run:
+                    exp = client.get_experiment(run.info.experiment_id)
+                    mlflow.set_experiment(exp.name)
+                    mlflow.start_run(run_id=identifier_run)
+                    print(f"[DEBUG] Restarted validation run: {identifier_run}")
+            except Exception as exc:
+                import logging
+                logging.debug("Could not restart validation run %s: %s", identifier_run, exc)
+                mlflow.start_run()
+        elif not active_run:
             mlflow.start_run()
-            need_close = True
-        try:
-            for name, payload in self.artifacts.items():
-                sub_path = f"{artifact_root}/{name}"
-                self._log_figures(payload.figures, sub_path)
-                self._log_tables(payload.tables, name, sub_path)
-        finally:
-            if need_close:
-                mlflow.end_run()
+            
+        for name, payload in self.artifacts.items():
+            sub_path = f"{artifact_root}/{name}"
+            self._log_figures(payload.figures, sub_path)
+            self._log_tables(payload.tables, name, sub_path)
 
     # Shared primitives
     def _log_figures(self, figures: Dict[str, Any], artifact_sub_path: str) -> None:
@@ -248,25 +262,41 @@ class ModelAnalysis:
     def _log_to_mlflow(
         self, identifier_run: Optional[str], base_artifact_path: Optional[str]
     ) -> None:
+        """Log artifacts into a single shared active MLflow run.
+
+        If a run is active, reuse it. If not and we have identifier_run, restart that run.
+        Otherwise start a new run. This ensures all validation artifacts go to the same run.
+        """
         artifact_root = base_artifact_path or self._artifact_root
-
-        active = mlflow.active_run()
-        need_close = False
-        if identifier_run:
-            if not active or active.info.run_id != identifier_run:
-                mlflow.start_run(run_id=identifier_run)
-        elif not active:
+        active_run = mlflow.active_run()
+        
+        # Debug logging
+        print(f"[DEBUG _log_to_mlflow] identifier_run: {identifier_run}")
+        print(f"[DEBUG _log_to_mlflow] active_run: {active_run.info.run_id if active_run else None}")
+        print(f"[DEBUG _log_to_mlflow] artifact_root: {artifact_root}")
+        
+        # If no active run but we have a specific run_id, try to restart that validation run
+        if not active_run and identifier_run:
+            try:
+                from mlflow.tracking import MlflowClient
+                client = MlflowClient()
+                run = client.get_run(identifier_run)
+                if run:
+                    exp = client.get_experiment(run.info.experiment_id)
+                    mlflow.set_experiment(exp.name)
+                    mlflow.start_run(run_id=identifier_run)
+                    print(f"[DEBUG] Restarted validation run: {identifier_run}")
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).debug("Could not restart validation run %s: %s", identifier_run, exc)
+                mlflow.start_run()
+        elif not active_run:
             mlflow.start_run()
-            need_close = True
-
-        try:
-            for name, payload in self.artifacts.items():
-                sub_path = f"{artifact_root}/{name}"
-                self._log_figures(payload.figures, sub_path)
-                self._log_tables(payload.tables, name, sub_path)
-        finally:
-            if need_close:
-                mlflow.end_run()
+            
+        for name, payload in self.artifacts.items():
+            sub_path = f"{artifact_root}/{name}"
+            self._log_figures(payload.figures, sub_path)
+            self._log_tables(payload.tables, name, sub_path)
 
     # Logging primitives ---------------------------------------------------
     def _log_figures(self, figures: Dict[str, Any], artifact_sub_path: str) -> None:
