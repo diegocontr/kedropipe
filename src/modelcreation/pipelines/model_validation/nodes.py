@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import logging
+from datetime import datetime
 from typing import Optional
 
-from datetime import datetime
-import logging
 import mlflow
 import numpy as np
 import pandas as pd
@@ -27,14 +27,16 @@ def start_mlflow_run(experiment_name: str | None) -> tuple[str, object]:
       - If a run is already active (e.g. training kept it open or prior node), reuse it.
       - Otherwise start a new run in the selected experiment.
     This prevents duplicate mlflow.start_run() calls causing 'already active' errors.
-    
+
     Returns:
         tuple: (run_id, mlflow_saver) - The run ID and MLflow artifact saver instance
     """
     from .mlflow_saver import MLflowArtifactSaver
-    
+
     if not experiment_name:
-        experiment_name = f"validation_experiment_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        experiment_name = (
+            f"validation_experiment_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        )
     mlflow.set_experiment(experiment_name)
     active = mlflow.active_run()
     if active:
@@ -42,14 +44,16 @@ def start_mlflow_run(experiment_name: str | None) -> tuple[str, object]:
     else:
         run = mlflow.start_run()
         run_id = run.info.run_id
-    
+
     # Create MLflow saver with the run ID
     mlflow_saver = MLflowArtifactSaver(run_id=run_id)
-    
+
     return run_id, mlflow_saver
 
 
-def end_mlflow_run(run_id: str | None = None) -> None:  # run_id accepted for dependency but unused
+def end_mlflow_run(
+    run_id: str | None = None,
+) -> None:  # run_id accepted for dependency but unused
     """End the active MLflow run if present."""
     active = mlflow.active_run()
     if active:
@@ -83,19 +87,25 @@ def run_global_analyses(
     weight_column = feat_conf.get("weight") if feat_conf else None
 
     if target_column is None or prediction_column is None:
-        raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
+        raise ValueError(
+            "target_column and prediction_column must be provided via feat_conf or legacy params."
+        )
 
     # Check if global analysis is enabled
     if not global_analysis_config.get("enabled", True):
-        print("[run_global_analyses] Skipping global analysis - disabled in configuration")
+        print(
+            "[run_global_analyses] Skipping global analysis - disabled in configuration"
+        )
         return
 
     # Merge all available parameters for the analysis
     merged_params = {**(global_analysis_config or {})}
-    
+
     # Add model features from feat_conf if available
     if feat_conf and "model_features" in feat_conf:
-        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
+        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf[
+            "model_features"
+        ]
 
     build_and_run_global_analyses(
         mlflow_saver=mlflow_saver,
@@ -133,20 +143,26 @@ def run_segmented_analyses(
     weight_column = feat_conf.get("weight") if feat_conf else None
 
     if target_column is None or prediction_column is None:
-        raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
+        raise ValueError(
+            "target_column and prediction_column must be provided via feat_conf or legacy params."
+        )
 
     # Check if segmented analysis is enabled
     if not segmented_analysis_config.get("enabled", True):
-        print("[run_segmented_analyses] Skipping segmented analysis - disabled in configuration")
+        print(
+            "[run_segmented_analyses] Skipping segmented analysis - disabled in configuration"
+        )
         return
 
     # Merge all available parameters for the analysis
     merged_params = {**(segmented_analysis_config or {})}
-    
+
     # Add model features from feat_conf if available
     if feat_conf and "model_features" in feat_conf:
-        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
-    
+        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf[
+            "model_features"
+        ]
+
     # Add categorical features from feat_conf if available
     if feat_conf and "categorical_features" in feat_conf:
         merged_params["categorical_features"] = feat_conf["categorical_features"]
@@ -188,7 +204,9 @@ def run_pdp_analyses(
     weight_column = feat_conf.get("weight") if feat_conf else None
 
     if target_column is None or prediction_column is None:
-        raise ValueError("target_column and prediction_column must be provided via feat_conf or legacy params.")
+        raise ValueError(
+            "target_column and prediction_column must be provided via feat_conf or legacy params."
+        )
 
     # Check if PDP analysis is enabled
     if not pdp_analysis_config.get("enabled", True):
@@ -197,10 +215,12 @@ def run_pdp_analyses(
 
     # Merge all available parameters for the analysis
     merged_params = {**(pdp_analysis_config or {})}
-    
+
     # Add model features from feat_conf if available
     if feat_conf and "model_features" in feat_conf:
-        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
+        merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf[
+            "model_features"
+        ]
 
     build_and_run_pdp_analyses(
         mlflow_saver=mlflow_saver,
@@ -230,11 +250,11 @@ def generate_predictions(
     - old_model_column should either exist in the dataset (historical predictions) or be None
     - No synthetic data generation needed - just use the model to predict on real features
     - Weight column will be added with default value 1.0 if not present
-    
+
     For toy datasets (current implementation):
     - Synthetic old model predictions are generated for comparison purposes
     - This entire synthetic generation logic should be removed for real datasets
-    
+
     Migration notes:
     - When moving to real datasets, remove all "TOY DATASET" blocks
     - The function will become much simpler - just model.predict() on features
@@ -245,21 +265,19 @@ def generate_predictions(
     # Real datasets should have actual historical predictions or no old model comparison
     old_model_noise_factor = None  # Hardcoded for toy dataset
     random_state = 42  # Hardcoded for toy dataset
-    
+
     rng = np.random.default_rng(random_state)
     # =============================================================================
-    
+
     train_out = train_dataset.copy()
     test_out = test_dataset.copy()
 
-    feature_names = getattr(trained_model, 'feature_names_', None)
+    feature_names = getattr(trained_model, "feature_names_", None)
     train_pred_input = train_dataset[feature_names]
     test_pred_input = test_dataset[feature_names]
 
     train_out[prediction_column] = trained_model.predict(train_pred_input)
     test_out[prediction_column] = trained_model.predict(test_pred_input)
-
-
 
     # ==================== TOY DATASET OLD MODEL HANDLING ====================
     # TODO: Remove this block when moving to real datasets
@@ -287,5 +305,7 @@ def generate_predictions(
     if old_model_column:
         present_train = old_model_column in train_out.columns
         present_test = old_model_column in test_out.columns
-        print(f"[generate_predictions] old_model_column='{old_model_column}' train_present={present_train} test_present={present_test}")
+        print(
+            f"[generate_predictions] old_model_column='{old_model_column}' train_present={present_train} test_present={present_test}"
+        )
     return train_out, test_out

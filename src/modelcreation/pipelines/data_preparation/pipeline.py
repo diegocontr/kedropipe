@@ -7,7 +7,7 @@ from .nodes import prepare_model_data
 
 def create_pipeline(**kwargs) -> Pipeline:
     """Create the data preparation pipeline.
-    
+
     Returns:
         A kedro ``Pipeline`` object.
     """

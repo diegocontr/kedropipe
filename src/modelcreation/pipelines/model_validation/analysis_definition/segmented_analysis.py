@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from ..analysis_class import BaseAnalysisRunner
 
-class SegmentedAnalysesRunner:
+
+class SegmentedAnalysesRunner(BaseAnalysisRunner):
     """Segmented analyses orchestrator with minimal subclass surface.
 
     Responsibilities:
@@ -31,9 +33,10 @@ class SegmentedAnalysesRunner:
         """Initialize the segmented analyses runner (path-based ingestion)."""
         from predlab.plotting.core import set_plot_theme
 
+        super().__init__()
         self._artifact_root = "segmented_analyses"
         self.analysis_name = "Segmented Analyses"
-        self.artifacts = {}  # Store artifacts for get_artifacts method
+        self.artifacts = {}
         self.train_df_path = train_df_path
         self.test_df_path = test_df_path
         self.target_column = target_column
@@ -269,23 +272,6 @@ class SegmentedAnalysesRunner:
 
         return report_panels
 
-    def add_artifact(self, name: str, figures: Any, tables: Any, include_config: bool = False, config: Optional[Dict[str, Any]] = None) -> None:
-        """Add an artifact to the collection."""
-        # Add config to tables if requested
-        if include_config and config:
-            if tables is None:
-                tables = {}
-            if isinstance(tables, dict):
-                tables = {"_config": config, **tables}
-            else:
-                # Convert to dict first if it has to_dict method
-                if hasattr(tables, "to_dict"):
-                    tables = {"_config": config, **tables.to_dict()}
-                else:
-                    tables = {"_config": config, "data": tables}
-        
-        self.artifacts[name] = {"figures": figures, "tables": tables}
-
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
         """Execute segmented analyses directly from parquet paths (no DataFrame inputs)."""
@@ -347,25 +333,25 @@ class SegmentedAnalysesRunner:
             agg_stats = payload["agg_stats"]
 
             figures_by_segment = {}
-            tables_by_segment = {}
+            raw_segment_objects = {}
 
             # Generate plots for each segment
             for segment_name, stats_df in dict_stats.items():
                 try:
                     plot_obj = plot_segment_statistics(
-                        stats_df, panel_configs=self.report_panels, agg_stats=agg_stats, show=False
+                        stats_df,
+                        panel_configs=self.report_panels,
+                        agg_stats=agg_stats,
+                        show=False,
                     )
-                    # Extract the figure from the plot object
                     if isinstance(plot_obj, tuple) and len(plot_obj) >= 1:
-                        fig = plot_obj[0]  # Usually returns (fig, axes)
+                        fig = plot_obj[0]
                     else:
                         fig = plot_obj
-                    
                     figures_by_segment[segment_name] = fig
-
-                    # Convert stats_df to serializable format
-                    tables_by_segment[segment_name] = {
-                        "statistics": stats_df.to_dict(orient="records"),
+                    # Store raw DataFrame; MLflow saver will serialize
+                    raw_segment_objects[segment_name] = {
+                        "statistics_df": stats_df,
                         "metadata": {
                             "segment_name": segment_name,
                             "n_rows": len(stats_df),
@@ -373,11 +359,13 @@ class SegmentedAnalysesRunner:
                         },
                     }
                 except Exception as e:
-                    print(f"Warning: Could not generate plot for segment {segment_name}: {e}")
+                    print(
+                        f"Warning: Could not generate plot for segment {segment_name}: {e}"
+                    )
 
             # Store aggregate statistics
             aggregate_tables = {
-                "aggregate_statistics": agg_stats.to_dict() if agg_stats is not None else {},
+                "aggregate_statistics_df": agg_stats,
                 "metadata": {
                     "subset": subset_label,
                     "n_segments": len(dict_stats),
@@ -385,11 +373,8 @@ class SegmentedAnalysesRunner:
                 },
             }
 
-            # Combine tables
-            all_tables = {
-                **tables_by_segment,
-                "aggregate": aggregate_tables,
-            }
+            # Combine raw objects for MLflow saver serialization
+            all_tables = {**raw_segment_objects, "aggregate": aggregate_tables}
 
             self._figures_by_subset[subset_label] = {
                 "figures": figures_by_segment,

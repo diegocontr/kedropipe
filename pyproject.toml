@@ -7,10 +7,10 @@ requires-python = ">=3.9"
 name = "modelcreation"
 readme = "README.md"
 dynamic = [ "version",]
-dependencies = [ 
-    "ipython>=8.10", 
-    "jupyterlab>=3.0", 
-    "notebook", 
+dependencies = [
+    "ipython>=8.10",
+    "jupyterlab>=3.0",
+    "notebook",
     "kedro~=1.0.0",
     "numpy",
     "pandas",
@@ -21,7 +21,8 @@ dependencies = [
     "scikit-learn",
     "catboost",
     "mlflow>=2.8.0",
-    "setuptools<81.0.0",  # Pin to avoid pkg_resources deprecation warnings
+    "setuptools<81.0.0", # Pin to avoid pkg_resources deprecation warnings
+    "ruff>=0.12.5",
 ]
 
 [project.scripts]
