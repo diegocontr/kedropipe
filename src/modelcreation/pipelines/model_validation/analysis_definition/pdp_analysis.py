@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from ..analysis_class import BaseAnalysis  # type: ignore
 
-
-class PDPAnalysesRunner(BaseAnalysis):
+class PDPAnalysesRunner:
     """PDP analyses orchestrator with minimal subclass surface.
 
     Responsibilities:
@@ -34,8 +32,9 @@ class PDPAnalysesRunner(BaseAnalysis):
         """Initialize the PDP analyses runner (path-based ingestion)."""
         from model_monitoring.plotting.core import set_plot_theme
 
-        super().__init__(artifact_root="pdp_analyses")
+        self._artifact_root = "pdp_analyses"
         self.analysis_name = "PDP Analyses"
+        self.artifacts = {}  # Store artifacts for get_artifacts method
         self.train_df_path = train_df_path
         self.test_df_path = test_df_path
         self.target_column = target_column
@@ -294,6 +293,23 @@ class PDPAnalysesRunner(BaseAnalysis):
             ax.set_title(f'PDP Plot - {segment_name} (Error)')
             return fig
 
+    def add_artifact(self, name: str, figures: Any, tables: Any, include_config: bool = False, config: Optional[Dict[str, Any]] = None) -> None:
+        """Add an artifact to the collection."""
+        # Add config to tables if requested
+        if include_config and config:
+            if tables is None:
+                tables = {}
+            if isinstance(tables, dict):
+                tables = {"_config": config, **tables}
+            else:
+                # Convert to dict first if it has to_dict method
+                if hasattr(tables, "to_dict"):
+                    tables = {"_config": config, **tables.to_dict()}
+                else:
+                    tables = {"_config": config, "data": tables}
+        
+        self.artifacts[name] = {"figures": figures, "tables": tables}
+
     # ---- artifact materialization ----------------------------------------
     def create_artifacts(self) -> None:
         """Create PDP panel figures per subset and store artifacts."""
@@ -369,14 +385,14 @@ class PDPAnalysesRunner(BaseAnalysis):
         Useful if caller wants to inspect or test without relying on MLflow side-effects.
         """
         return {
-            k: {"figures": v.figures, "tables": v.tables}
+            k: {"figures": v["figures"], "tables": v["tables"]}
             for k, v in self.artifacts.items()
         }
 
 
-def build_and_run_pdp_analyses(**kwargs) -> None:
+def build_and_run_pdp_analyses(mlflow_saver, **kwargs) -> None:
     """Build and run PDP analyses with the provided configuration."""
     runner = PDPAnalysesRunner(**kwargs)
     runner.run_analysis()
     runner.create_artifacts()
-    runner.save_to_mlflow(identifier_run=runner.resolved_run)
+    mlflow_saver.save_to_mlflow(runner)

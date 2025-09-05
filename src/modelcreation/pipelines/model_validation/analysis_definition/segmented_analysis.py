@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from ..analysis_class import BaseAnalysis  # type: ignore
 
-
-class SegmentedAnalysesRunner(BaseAnalysis):
+class SegmentedAnalysesRunner:
     """Segmented analyses orchestrator with minimal subclass surface.
 
     Responsibilities:
@@ -33,8 +31,9 @@ class SegmentedAnalysesRunner(BaseAnalysis):
         """Initialize the segmented analyses runner (path-based ingestion)."""
         from model_monitoring.plotting.core import set_plot_theme
 
-        super().__init__(artifact_root="segmented_analyses")
+        self._artifact_root = "segmented_analyses"
         self.analysis_name = "Segmented Analyses"
+        self.artifacts = {}  # Store artifacts for get_artifacts method
         self.train_df_path = train_df_path
         self.test_df_path = test_df_path
         self.target_column = target_column
@@ -270,6 +269,23 @@ class SegmentedAnalysesRunner(BaseAnalysis):
 
         return report_panels
 
+    def add_artifact(self, name: str, figures: Any, tables: Any, include_config: bool = False, config: Optional[Dict[str, Any]] = None) -> None:
+        """Add an artifact to the collection."""
+        # Add config to tables if requested
+        if include_config and config:
+            if tables is None:
+                tables = {}
+            if isinstance(tables, dict):
+                tables = {"_config": config, **tables}
+            else:
+                # Convert to dict first if it has to_dict method
+                if hasattr(tables, "to_dict"):
+                    tables = {"_config": config, **tables.to_dict()}
+                else:
+                    tables = {"_config": config, "data": tables}
+        
+        self.artifacts[name] = {"figures": figures, "tables": tables}
+
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
         """Execute segmented analyses directly from parquet paths (no DataFrame inputs)."""
@@ -398,14 +414,14 @@ class SegmentedAnalysesRunner(BaseAnalysis):
         Useful if caller wants to inspect or test without relying on MLflow side-effects.
         """
         return {
-            k: {"figures": v.figures, "tables": v.tables}
+            k: {"figures": v["figures"], "tables": v["tables"]}
             for k, v in self.artifacts.items()
         }
 
 
-def build_and_run_segmented_analyses(**kwargs) -> None:
+def build_and_run_segmented_analyses(mlflow_saver, **kwargs) -> None:
     """Build and run segmented analyses with the provided configuration."""
     runner = SegmentedAnalysesRunner(**kwargs)
     runner.run_analysis()
     runner.create_artifacts()
-    runner.save_to_mlflow(identifier_run=runner.resolved_run)
+    mlflow_saver.save_to_mlflow(runner)

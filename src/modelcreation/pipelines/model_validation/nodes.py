@@ -20,22 +20,33 @@ def _binarize_target(series, threshold: float) -> pd.Series:
     return (series > threshold).astype(int)
 
 
-def start_mlflow_run(experiment_name: str | None) -> str:
-    """Ensure an experiment is selected and return an active MLflow run id.
+def start_mlflow_run(experiment_name: str | None) -> tuple[str, object]:
+    """Ensure an experiment is selected and return an active MLflow run id and saver.
 
     Rules:
       - If a run is already active (e.g. training kept it open or prior node), reuse it.
       - Otherwise start a new run in the selected experiment.
     This prevents duplicate mlflow.start_run() calls causing 'already active' errors.
+    
+    Returns:
+        tuple: (run_id, mlflow_saver) - The run ID and MLflow artifact saver instance
     """
+    from .mlflow_saver import MLflowArtifactSaver
+    
     if not experiment_name:
         experiment_name = f"validation_experiment_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
     mlflow.set_experiment(experiment_name)
     active = mlflow.active_run()
     if active:
-        return active.info.run_id
-    run = mlflow.start_run()
-    return run.info.run_id
+        run_id = active.info.run_id
+    else:
+        run = mlflow.start_run()
+        run_id = run.info.run_id
+    
+    # Create MLflow saver with the run ID
+    mlflow_saver = MLflowArtifactSaver(run_id=run_id)
+    
+    return run_id, mlflow_saver
 
 
 def end_mlflow_run(run_id: str | None = None) -> None:  # run_id accepted for dependency but unused
@@ -50,6 +61,7 @@ def end_mlflow_run(run_id: str | None = None) -> None:  # run_id accepted for de
 
 def run_global_analyses(
     *,
+    mlflow_saver,  # MLflow saver passed from start_mlflow_run node
     train_df_path: str,
     test_df_path: str,
     # New consolidated feature configuration dict. Expected keys: target, weight (optional), old_model (optional), prediction (optional), model_features (optional)
@@ -86,6 +98,7 @@ def run_global_analyses(
         merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
 
     build_and_run_global_analyses(
+        mlflow_saver=mlflow_saver,
         train_df_path=train_df_path,
         test_df_path=test_df_path,
         target_column=target_column,
@@ -94,12 +107,13 @@ def run_global_analyses(
         weight_column=weight_column,
         params=merged_params,
         run_id=run_id,
-    resolved_run_extractor=_extract_run_id,
+        resolved_run_extractor=_extract_run_id,
     )
 
 
 def run_segmented_analyses(
     *,
+    mlflow_saver,  # MLflow saver passed from start_mlflow_run node
     train_df_path: str,
     test_df_path: str,
     feat_conf: Optional[dict] = None,
@@ -138,6 +152,7 @@ def run_segmented_analyses(
         merged_params["categorical_features"] = feat_conf["categorical_features"]
 
     build_and_run_segmented_analyses(
+        mlflow_saver=mlflow_saver,
         train_df_path=train_df_path,
         test_df_path=test_df_path,
         target_column=target_column,
@@ -146,12 +161,13 @@ def run_segmented_analyses(
         weight_column=weight_column,
         params=merged_params,
         run_id=run_id,
-    resolved_run_extractor=_extract_run_id,
+        resolved_run_extractor=_extract_run_id,
     )
 
 
 def run_pdp_analyses(
     *,
+    mlflow_saver,  # MLflow saver passed from start_mlflow_run node
     train_df_path: str,
     test_df_path: str,
     feat_conf: Optional[dict] = None,
@@ -187,6 +203,7 @@ def run_pdp_analyses(
         merged_params.setdefault("data_preparation", {})["feature_columns"] = feat_conf["model_features"]
 
     build_and_run_pdp_analyses(
+        mlflow_saver=mlflow_saver,
         train_df_path=train_df_path,
         test_df_path=test_df_path,
         target_column=target_column,
@@ -196,7 +213,7 @@ def run_pdp_analyses(
         weight_column=weight_column,
         params=merged_params,
         run_id=run_id,
-    resolved_run_extractor=_extract_run_id,
+        resolved_run_extractor=_extract_run_id,
     )
 
 
@@ -206,21 +223,32 @@ def generate_predictions(
     train_dataset: pd.DataFrame,
     prediction_column: str,
     old_model_column: str | None = None,
-    old_model_noise_factor: float | None = None,
-    random_state: int | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Add prediction column to both train and test datasets.
 
-    Optionally create a synthetic old model prediction column (old_model_column) for
-    side-by-side comparison in analyses if it does not already exist.
-
-    Synthetic old model logic:
-      - If old_model_noise_factor > 0: old_pred = new_pred * (1 + Normal(0, noise_factor)).
-      - Else: old_pred = new_pred * 0.9 (simple under-performing baseline).
-    Values are clipped at 0 for non-negative targets (Poisson-like use case).
+    For real datasets:
+    - old_model_column should either exist in the dataset (historical predictions) or be None
+    - No synthetic data generation needed - just use the model to predict on real features
+    - Weight column will be added with default value 1.0 if not present
+    
+    For toy datasets (current implementation):
+    - Synthetic old model predictions are generated for comparison purposes
+    - This entire synthetic generation logic should be removed for real datasets
+    
+    Migration notes:
+    - When moving to real datasets, remove all "TOY DATASET" blocks
+    - The function will become much simpler - just model.predict() on features
+    - Historical model comparisons (if needed) should use actual historical predictions
     """
+    # ==================== TOY DATASET SYNTHETIC DATA GENERATION ====================
+    # TODO: Remove this entire block when moving to real datasets
+    # Real datasets should have actual historical predictions or no old model comparison
+    old_model_noise_factor = None  # Hardcoded for toy dataset
+    random_state = 42  # Hardcoded for toy dataset
+    
     rng = np.random.default_rng(random_state)
-
+    # =============================================================================
+    
     train_out = train_dataset.copy()
     test_out = test_dataset.copy()
 
@@ -246,7 +274,9 @@ def generate_predictions(
     if "weight" not in test_out.columns:
         test_out["weight"] = 1.0
 
-    # Do NOT synthesize old model predictions automatically; only use if column already exists
+    # ==================== TOY DATASET OLD MODEL HANDLING ====================
+    # TODO: Remove this block when moving to real datasets
+    # For real datasets: either use existing old_model_column or skip old model comparison
     if old_model_column:
         missing = []
         if old_model_column not in train_out.columns:
@@ -257,6 +287,7 @@ def generate_predictions(
             print(
                 f"Warning: old_model_column '{old_model_column}' missing in {', '.join(missing)} dataset(s). Global analyses will show only the new model."
             )
+    # =========================================================================
 
     print(f"[generate_predictions] Output train columns: {list(train_out.columns)}")
     print(f"[generate_predictions] Output test columns: {list(test_out.columns)}")
