@@ -17,7 +17,7 @@ _PLOT_CONFIG = {
 
 
 def set_plot_theme(theme_dict: Optional[dict] = None, **kwargs):
-    """Set global plotting theme for model_monitoring plots.
+    """Set global plotting theme for predlab plots.
 
     Can be called with a dictionary or with keyword arguments.
 

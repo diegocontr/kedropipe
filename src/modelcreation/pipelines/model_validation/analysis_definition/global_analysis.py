@@ -29,7 +29,7 @@ class GlobalAnalysesRunner:
         resolved_run_extractor,
     ) -> None:
         """Initialize the global analyses runner (path-based ingestion)."""
-        from model_monitoring.plotting.core import set_plot_theme
+        from predlab.plotting.core import set_plot_theme
 
         self._artifact_root = "global_analyses"
         self.analysis_name = "Global Analyses"
@@ -108,7 +108,7 @@ class GlobalAnalysesRunner:
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
         """Execute analyses directly from parquet paths (no DataFrame inputs)."""
-        from model_monitoring.global_analyses import GlobalAnalysisDataBuilder
+        from predlab.global_analyses import GlobalAnalysisDataBuilder
 
         self._subset_results = {}
         analyses_cfg = [
@@ -120,10 +120,10 @@ class GlobalAnalysesRunner:
         path_map = {"train": self.train_df_path, "test": self.test_df_path}
 
         for subset_label, data_path in path_map.items():
-            builder = GlobalAnalysisDataBuilder(data=data_path, extra_cols=[])
+            builder = GlobalAnalysisDataBuilder(extra_cols=[])
             for key, cfg in analyses_cfg:
                 builder.add_analysis(key, cfg)
-            builder.load_data()
+            builder.load_data(data=data_path)
             builder.calculate()
             analyses_objs = builder.get_analyses_objects()
             self._subset_results[subset_label] = {"builder": builder, "analyses_objs": analyses_objs}
@@ -151,7 +151,7 @@ class GlobalAnalysesRunner:
 
         Returns analyses objects & figure per subset similarly to notebook logic.
         """
-        from model_monitoring.plotting import plot_global_statistics
+        from predlab.plotting import plot_global_statistics
 
         report_panels = [
             {"title": "Lorenz Curve", "type": "lorenz_curve"},

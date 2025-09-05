@@ -12,7 +12,7 @@ A Python package for monitoring and analyzing the performance of predictive mode
 
 ## Usage
 
-Here is a typical workflow for using the `model_monitoring` package to analyze model KPIs.
+Here is a typical workflow for using the `predlab` package to analyze model KPIs.
 
 ### 1. Prepare your data
 
@@ -23,11 +23,11 @@ First, you need a dataset, typically in a pandas DataFrame, containing your feat
 Use `AnalysisDataBuilder` to set up the monitoring pipeline.
 
 ```python
-from model_monitoring.monitoring import AnalysisDataBuilder
-from model_monitoring.segmentation import SegmentCategorical, SegmentCustom
+from predlab.monitoring import AnalysisDataBuilder
+from predlab.segmentation import SegmentCategorical, SegmentCustom
 
-# Initialize AnalysisDataBuilder with the dataframe
-lr_analysis = AnalysisDataBuilder(data=df)
+# Initialize AnalysisDataBuilder
+lr_analysis = AnalysisDataBuilder()
 
 # Define segmentation strategies
 segments = [
@@ -39,7 +39,7 @@ for s in segments:
     lr_analysis.add_segment(s)
 
 # Load data and apply segments
-lr_analysis.load_data()
+lr_analysis.load_data(data=df)
 lr_analysis.apply_segments()
 ```
 
@@ -48,7 +48,7 @@ lr_analysis.apply_segments()
 Define the statistics you want to compute and use `calculate_statistics`.
 
 ```python
-from model_monitoring.agg_stats import calculate_statistics
+from predlab.agg_stats import calculate_statistics
 
 # Define statistics to calculate
 func_dict = {
@@ -72,7 +72,7 @@ dict_stats, agg_stats = calculate_statistics(lr_analysis, func_dict)
 Use `plot_segment_statistics` to create a visual report of your KPIs for a specific segment.
 
 ```python
-from model_monitoring.plotting import plot_segment_statistics, set_plot_theme
+from predlab.plotting import plot_segment_statistics, set_plot_theme
 
 # Set a plot theme
 set_plot_theme()

@@ -1,5 +1,3 @@
-from typing import Dict, Union
-
 import pandas as pd
 
 from .data_loader import DataFrameDataLoader, ParquetDataLoader, TripleParquetDataLoader
@@ -51,33 +49,17 @@ class AnalysisDataBuilder:
         apply_segments(): Applies all registered segments to the data.
     """
 
-    def __init__(
-        self, data: Union[str, pd.DataFrame, Dict], extra_cols=None, treatements=None
-    ):
-        """Initializes the LRAnalysis object.
+    def __init__(self, extra_cols=None, treatements=None):
+        """Initializes the AnalysisDataBuilder object.
 
         Args:
-            data (Union[str, pd.DataFrame, Dict]): The input data.
-                                             - str: path to a single parquet file.
-                                             - pd.DataFrame: pandas DataFrame.
-                                             - Dict: arguments for TripleParquetDataLoader.
             extra_cols (list, optional): List of extra columns to load. Defaults to None.
             treatements (list, optional): List of treatment functions to apply to the data. Defaults to None.
         """
         if treatements is None:
             treatements = []
 
-        if isinstance(data, str):
-            self.data_loader = ParquetDataLoader(data)
-        elif isinstance(data, pd.DataFrame):
-            self.data_loader = DataFrameDataLoader(data)
-        elif isinstance(data, dict):
-            self.data_loader = TripleParquetDataLoader(**data)
-        else:
-            raise TypeError(
-                "data must be a pandas DataFrame, a string path, or a dictionary for TripleParquetDataLoader."
-            )
-
+        self.data_loader = None
         self.db = None
         self.cols_to_get = extra_cols if extra_cols is not None else []
         self.treatements = treatements
@@ -140,10 +122,34 @@ class AnalysisDataBuilder:
         for c in seg.get_cols():
             self.add_col(c)
 
-    def load_data(self):
+    def load_data(self, data=None):
         """Loads data from the source if it hasn't been loaded yet.
-        Applies treatments after loading.
+
+        Args:
+            data (Union[str, pd.DataFrame, Dict], optional): The input data.
+                                             - str: path to a single parquet file.
+                                             - pd.DataFrame: pandas DataFrame.
+                                             - Dict: arguments for TripleParquetDataLoader.
+                                             If not provided, uses existing data_loader.
         """
+        if data is not None:
+            # Set up data loader if data is provided
+            if isinstance(data, str):
+                self.data_loader = ParquetDataLoader(data)
+            elif isinstance(data, pd.DataFrame):
+                self.data_loader = DataFrameDataLoader(data)
+            elif isinstance(data, dict):
+                self.data_loader = TripleParquetDataLoader(**data)
+            else:
+                raise TypeError(
+                    "data must be a pandas DataFrame, a string path, or a dictionary for TripleParquetDataLoader."
+                )
+
+        if self.data_loader is None:
+            raise ValueError(
+                "No data source specified. Provide data either in __init__ or load_data() method."
+            )
+
         if self.db is None:
             # Preserve order while filtering out treatment columns
             treatments_cols_set = set(self.treatments_cols)

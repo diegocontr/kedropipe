@@ -29,7 +29,7 @@ class SegmentedAnalysesRunner:
         resolved_run_extractor,
     ) -> None:
         """Initialize the segmented analyses runner (path-based ingestion)."""
-        from model_monitoring.plotting.core import set_plot_theme
+        from predlab.plotting.core import set_plot_theme
 
         self._artifact_root = "segmented_analyses"
         self.analysis_name = "Segmented Analyses"
@@ -86,7 +86,7 @@ class SegmentedAnalysesRunner:
 
     def _build_segments(self) -> List[Any]:
         """Build segmentation strategies based on available columns and params."""
-        from model_monitoring import SegmentCustom, SegmentCategorical
+        from predlab import SegmentCustom, SegmentCategorical
 
         segments = []
         
@@ -289,7 +289,7 @@ class SegmentedAnalysesRunner:
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
         """Execute segmented analyses directly from parquet paths (no DataFrame inputs)."""
-        from model_monitoring import AnalysisDataBuilder, calculate_statistics
+        from predlab import AnalysisDataBuilder, calculate_statistics
 
         self._subset_results = {}
 
@@ -313,14 +313,14 @@ class SegmentedAnalysesRunner:
             extra_cols = list(set(extra_cols))
 
             # Initialize AnalysisDataBuilder
-            builder = AnalysisDataBuilder(data=data_path, extra_cols=extra_cols)
+            builder = AnalysisDataBuilder(extra_cols=extra_cols)
 
             # Add segments
             for segment in self.segments:
                 builder.add_segment(segment)
 
             # Load data and apply all defined steps
-            builder.load_data()
+            builder.load_data(data=data_path)
             builder.apply_treatments()
             builder.apply_segments()
 
@@ -338,7 +338,7 @@ class SegmentedAnalysesRunner:
     # ---- artifact materialization ----------------------------------------
     def create_artifacts(self) -> None:
         """Create segmented panel figures per subset and store artifacts."""
-        from model_monitoring.plotting import plot_segment_statistics
+        from predlab.plotting import plot_segment_statistics
 
         self._figures_by_subset = {}
 

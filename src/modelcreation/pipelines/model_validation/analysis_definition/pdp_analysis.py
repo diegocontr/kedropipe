@@ -30,7 +30,7 @@ class PDPAnalysesRunner:
         trained_model: Any,
     ) -> None:
         """Initialize the PDP analyses runner (path-based ingestion)."""
-        from model_monitoring.plotting.core import set_plot_theme
+        from predlab.plotting.core import set_plot_theme
 
         self._artifact_root = "pdp_analyses"
         self.analysis_name = "PDP Analyses"
@@ -100,7 +100,7 @@ class PDPAnalysesRunner:
 
     def _build_segments(self):
         """Build segmentation strategies based on available columns and params."""
-        from model_monitoring import SegmentCustom
+        from predlab import SegmentCustom
 
         segments = []
         
@@ -191,7 +191,7 @@ class PDPAnalysesRunner:
     # ---- analysis execution (no artifact logging here) --------------------
     def run_analysis(self) -> None:
         """Execute PDP analyses directly from parquet paths (no DataFrame inputs)."""
-        from model_monitoring.model_analyses import ModelAnalysisDataBuilder
+        from predlab.model_analyses import ModelAnalysisDataBuilder
 
         self._subset_results = {}
 
@@ -218,7 +218,7 @@ class PDPAnalysesRunner:
             extra_cols = list(set(extra_cols))
 
             # Initialize ModelAnalysisDataBuilder
-            builder = ModelAnalysisDataBuilder(data=data_path, extra_cols=extra_cols)
+            builder = ModelAnalysisDataBuilder(extra_cols=extra_cols)
 
             # Register PDP analysis
             builder.add_analysis("PDP", self.func_dict_pdp)
@@ -228,7 +228,7 @@ class PDPAnalysesRunner:
                 builder.add_segment(segment)
 
             # Load data and apply treatments
-            builder.load_data()
+            builder.load_data(data=data_path)
             builder.apply_treatments()
             builder.apply_segments()
 

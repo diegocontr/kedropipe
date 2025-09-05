@@ -84,9 +84,7 @@ class BaseAnalysis(ABC):
     def setup_analysis(self) -> None:
         """Set up the analysis by initializing the AnalysisDataBuilder."""
         # Initialize AnalysisDataBuilder
-        self.analysis_builder = AnalysisDataBuilder(
-            data=self.data, extra_cols=self.extra_cols
-        )
+        self.analysis_builder = AnalysisDataBuilder(extra_cols=self.extra_cols)
 
         # Apply treatments (can be overridden in subclasses)
         self._apply_treatments()
@@ -96,7 +94,7 @@ class BaseAnalysis(ABC):
             self.analysis_builder.add_segment(segment)
 
         # Load data and apply all transformations
-        self.analysis_builder.load_data()
+        self.analysis_builder.load_data(data=self.data)
         self.analysis_builder.apply_treatments()
         self.analysis_builder.apply_segments()
 

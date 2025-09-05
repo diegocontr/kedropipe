@@ -8,7 +8,7 @@ theme:
 nav:
   - Home: index.md
   - VarTester: vartester.md
-  - Model Monitoring: model_monitoring.md
+  - Model Monitoring: predlab.md
 
 plugins: 
   - search

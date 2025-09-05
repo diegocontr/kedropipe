@@ -252,31 +252,24 @@ def generate_predictions(
     train_out = train_dataset.copy()
     test_out = test_dataset.copy()
 
-    # Use only feature columns present in model if attribute exists
-    try:
-        feature_names = getattr(trained_model, 'feature_names_', None)
-        if feature_names:
-            train_pred_input = train_dataset[feature_names]
-            test_pred_input = test_dataset[feature_names]
-        else:
-            train_pred_input = train_dataset
-            test_pred_input = test_dataset
-    except Exception:
-        train_pred_input = train_dataset
-        test_pred_input = test_dataset
+    feature_names = getattr(trained_model, 'feature_names_', None)
+    train_pred_input = train_dataset[feature_names]
+    test_pred_input = test_dataset[feature_names]
 
     train_out[prediction_column] = trained_model.predict(train_pred_input)
     test_out[prediction_column] = trained_model.predict(test_pred_input)
 
+
+
+    # ==================== TOY DATASET OLD MODEL HANDLING ====================
+    # TODO: Remove this block when moving to real datasets
+    # For real datasets: either use existing old_model_column or skip old model comparison
     # Add weight column if missing (defaults to 1.0 for all rows)
     if "weight" not in train_out.columns:
         train_out["weight"] = 1.0
     if "weight" not in test_out.columns:
         test_out["weight"] = 1.0
 
-    # ==================== TOY DATASET OLD MODEL HANDLING ====================
-    # TODO: Remove this block when moving to real datasets
-    # For real datasets: either use existing old_model_column or skip old model comparison
     if old_model_column:
         missing = []
         if old_model_column not in train_out.columns:

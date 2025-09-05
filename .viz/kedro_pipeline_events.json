@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-09-05T16:57:20.014057+00:00"
+    "timestamp": "2025-09-05T20:12:33.754956+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.024523222004063427,
+    "duration": 0.03038044599816203,
     "status": "success"
   },
   {
@@ -48,7 +48,7 @@
     "event": "after_node_run",
     "node": "start_mlflow_run",
     "node_id": "2a98208d",
-    "duration": 0.06295639599557035,
+    "duration": 0.07100972700573038,
     "status": "success"
   },
   {
@@ -111,7 +111,7 @@
     "event": "after_node_run",
     "node": "run_global_analyses",
     "node_id": "caf3ea87",
-    "duration": 2.1590013810055098,
+    "duration": 2.172810630989261,
     "status": "success"
   },
   {
@@ -160,7 +160,7 @@
     "event": "after_node_run",
     "node": "run_segmented_analyses",
     "node_id": "a4685053",
-    "duration": 3.300914446997922,
+    "duration": 3.29438382400258,
     "status": "success"
   },
   {
@@ -181,7 +181,7 @@
     "event": "after_node_run",
     "node": "split_full_data_node",
     "node_id": "082bffa9",
-    "duration": 0.006596784005523659,
+    "duration": 0.008750523993512616,
     "status": "success"
   },
   {
@@ -230,7 +230,7 @@
     "event": "after_node_run",
     "node": "separate_features_target_node",
     "node_id": "c2228351",
-    "duration": 0.010067519004223868,
+    "duration": 0.00989637800375931,
     "status": "success"
   },
   {
@@ -307,7 +307,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 2.4921422460029135,
+    "duration": 2.4192338720022235,
     "status": "success"
   },
   {
@@ -360,24 +360,10 @@
     "size": 0
   },
   {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_validation.old_model_noise_factor",
-    "node_id": "51921802",
-    "status": "Available",
-    "size": 0
-  },
-  {
-    "event": "after_dataset_loaded",
-    "dataset": "params:model_training.random_state",
-    "node_id": "66b64fe7",
-    "status": "Available",
-    "size": 0
-  },
-  {
     "event": "after_node_run",
     "node": "generate_predictions",
-    "node_id": "e1312146",
-    "duration": 0.008661568994284607,
+    "node_id": "52113c83",
+    "duration": 0.008473217996652238,
     "status": "success"
   },
   {
@@ -447,11 +433,11 @@
     "event": "after_node_run",
     "node": "run_pdp_analyses",
     "node_id": "c3c61022",
-    "duration": 1.1506404700048734,
+    "duration": 1.1634645040030591,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-09-05T16:57:29.549163+00:00"
+    "timestamp": "2025-09-05T20:12:43.227968+00:00"
   }
 ]
