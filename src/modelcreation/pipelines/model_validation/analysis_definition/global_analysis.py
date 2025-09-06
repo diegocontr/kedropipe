@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+from ..analysis_class import BaseAnalysisRunner
 
-class GlobalAnalysesRunner:
+
+class GlobalAnalysesRunner(BaseAnalysisRunner):
     """Global analyses orchestrator with minimal subclass surface.
 
     Responsibilities:
@@ -31,9 +33,10 @@ class GlobalAnalysesRunner:
         """Initialize the global analyses runner (path-based ingestion)."""
         from predlab.plotting.core import set_plot_theme
 
+        super().__init__()
         self._artifact_root = "global_analyses"
         self.analysis_name = "Global Analyses"
-        self.artifacts = {}  # Store artifacts for get_artifacts method
+        self.artifacts = {}
         self.train_df_path = train_df_path
         self.test_df_path = test_df_path
         self.target_column = target_column
@@ -72,7 +75,11 @@ class GlobalAnalysesRunner:
         models_cfg: Dict[str, Dict[str, Any]] = {
             "New model": {"pred_col": prediction_column, "name": "new"}
         }
-        if old_model_column and old_model_column in self._train_cols and old_model_column in self._test_cols:
+        if (
+            old_model_column
+            and old_model_column in self._train_cols
+            and old_model_column in self._test_cols
+        ):
             models_cfg["Old model"] = {"pred_col": old_model_column, "name": "old"}
         self.models_cfg = models_cfg
 
@@ -126,24 +133,10 @@ class GlobalAnalysesRunner:
             builder.load_data(data=data_path)
             builder.calculate()
             analyses_objs = builder.get_analyses_objects()
-            self._subset_results[subset_label] = {"builder": builder, "analyses_objs": analyses_objs}
-
-    def add_artifact(self, name: str, figures: Any, tables: Any, include_config: bool = False, config: Optional[Dict[str, Any]] = None) -> None:
-        """Add an artifact to the collection."""
-        # Add config to tables if requested
-        if include_config and config:
-            if tables is None:
-                tables = {}
-            if isinstance(tables, dict):
-                tables = {"_config": config, **tables}
-            else:
-                # Convert to dict first if it has to_dict method
-                if hasattr(tables, "to_dict"):
-                    tables = {"_config": config, **tables.to_dict()}
-                else:
-                    tables = {"_config": config, "data": tables}
-        
-        self.artifacts[name] = {"figures": figures, "tables": tables}
+            self._subset_results[subset_label] = {
+                "builder": builder,
+                "analyses_objs": analyses_objs,
+            }
 
     # ---- artifact materialization ----------------------------------------
     def create_artifacts(self) -> None:
@@ -178,28 +171,11 @@ class GlobalAnalysesRunner:
                 "analyses_objs": analyses_objs,
                 "figure": fig,
             }
-
-            # Build tables extraction combining all analyses metadata
-            tables: Dict[str, Any] = {}
-            for key, analysis_obj in analyses_objs.items():
-                meta = analysis_obj.get_data_and_metadata()
-                # Flatten meta into serializable dict
-                ser_meta: Dict[str, Any] = {}
-                for mk, mv in meta.items():
-                    entry = dict(mv)
-                    data = entry.get("data")
-                    if hasattr(data, "to_dict") and not isinstance(data, dict):
-                        entry["data"] = data.to_dict(orient="records")
-                    elif isinstance(data, dict):
-                        converted = {}
-                        for dk, dv in data.items():
-                            if hasattr(dv, "to_dict"):
-                                converted[dk] = dv.to_dict(orient="records")
-                            else:
-                                converted[dk] = dv
-                        entry["data"] = converted
-                    ser_meta[mk] = entry
-                tables[key] = ser_meta
+            # Defer heavy metadata serialization to the MLflow saver.
+            # We keep raw analysis objects here; the saver will transform them
+            # into JSON-friendly structures when logging. This keeps the runner
+            # focused on computation + figure assembly only.
+            tables: Dict[str, Any] = dict(analyses_objs)
 
             self.add_artifact(
                 f"global_panels_{subset_label}",

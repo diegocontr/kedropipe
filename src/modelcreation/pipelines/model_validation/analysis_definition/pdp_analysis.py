@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+from ..analysis_class import BaseAnalysisRunner
 
-class PDPAnalysesRunner:
+
+class PDPAnalysesRunner(BaseAnalysisRunner):
     """PDP analyses orchestrator with minimal subclass surface.
 
     Responsibilities:
@@ -32,9 +34,10 @@ class PDPAnalysesRunner:
         """Initialize the PDP analyses runner (path-based ingestion)."""
         from predlab.plotting.core import set_plot_theme
 
+        super().__init__()
         self._artifact_root = "pdp_analyses"
         self.analysis_name = "PDP Analyses"
-        self.artifacts = {}  # Store artifacts for get_artifacts method
+        self.artifacts = {}
         self.train_df_path = train_df_path
         self.test_df_path = test_df_path
         self.target_column = target_column
@@ -293,23 +296,6 @@ class PDPAnalysesRunner:
             ax.set_title(f'PDP Plot - {segment_name} (Error)')
             return fig
 
-    def add_artifact(self, name: str, figures: Any, tables: Any, include_config: bool = False, config: Optional[Dict[str, Any]] = None) -> None:
-        """Add an artifact to the collection."""
-        # Add config to tables if requested
-        if include_config and config:
-            if tables is None:
-                tables = {}
-            if isinstance(tables, dict):
-                tables = {"_config": config, **tables}
-            else:
-                # Convert to dict first if it has to_dict method
-                if hasattr(tables, "to_dict"):
-                    tables = {"_config": config, **tables.to_dict()}
-                else:
-                    tables = {"_config": config, "data": tables}
-        
-        self.artifacts[name] = {"figures": figures, "tables": tables}
-
     # ---- artifact materialization ----------------------------------------
     def create_artifacts(self) -> None:
         """Create PDP panel figures per subset and store artifacts."""
@@ -320,17 +306,15 @@ class PDPAnalysesRunner:
             agg_stats = payload["agg_stats"]
 
             figures_by_segment = {}
-            tables_by_segment = {}
+            raw_segment_objects = {}
 
             # Generate plots for each segment
             for segment_name, stats_df in dict_stats.items():
                 try:
                     fig = self._create_pdp_plot(stats_df, segment_name)
                     figures_by_segment[segment_name] = fig
-
-                    # Convert stats_df to serializable format
-                    tables_by_segment[segment_name] = {
-                        "pdp_data": stats_df.to_dict(orient="records"),
+                    raw_segment_objects[segment_name] = {
+                        "pdp_df": stats_df,
                         "metadata": {
                             "segment_name": segment_name,
                             "n_rows": len(stats_df),
@@ -338,11 +322,19 @@ class PDPAnalysesRunner:
                         },
                     }
                 except Exception as e:
-                    print(f"Warning: Could not generate PDP plot for segment {segment_name}: {e}")
-                    # Create error figure as fallback
+                    print(
+                        f"Warning: Could not generate PDP plot for segment {segment_name}: {e}"
+                    )
                     import matplotlib.pyplot as plt
                     fig, ax = plt.subplots(figsize=(8, 4))
-                    ax.text(0.5, 0.5, f'Error: {e!s}', ha='center', va='center', transform=ax.transAxes)
+                    ax.text(
+                        0.5,
+                        0.5,
+                        f'Error: {e!s}',
+                        ha='center',
+                        va='center',
+                        transform=ax.transAxes,
+                    )
                     ax.set_title(f'PDP Plot Error - {segment_name}')
                     figures_by_segment[segment_name] = fig
 
@@ -353,15 +345,13 @@ class PDPAnalysesRunner:
                     "n_segments": len(dict_stats),
                     "segment_names": list(dict_stats.keys()),
                     "feature_columns": self.feature_cols,
-                    "model_name": self.trained_model.__class__.__name__ if self.trained_model else 'Unknown',
+                    "model_name": self.trained_model.__class__.__name__
+                    if self.trained_model
+                    else "Unknown",
                 },
             }
 
-            # Combine tables
-            all_tables = {
-                **tables_by_segment,
-                "metadata": metadata_tables,
-            }
+            all_tables = {**raw_segment_objects, **metadata_tables}
 
             self._figures_by_subset[subset_label] = {
                 "figures": figures_by_segment,

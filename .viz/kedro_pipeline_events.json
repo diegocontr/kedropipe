@@ -1,7 +1,7 @@
 [
   {
     "event": "before_pipeline_run",
-    "timestamp": "2025-09-05T20:12:33.754956+00:00"
+    "timestamp": "2025-09-05T20:52:25.734654+00:00"
   },
   {
     "event": "after_dataset_loaded",
@@ -21,7 +21,7 @@
     "event": "after_node_run",
     "node": "prepare_model_data_node",
     "node_id": "1f4598f4",
-    "duration": 0.03038044599816203,
+    "duration": 0.028303255006903782,
     "status": "success"
   },
   {
@@ -48,7 +48,7 @@
     "event": "after_node_run",
     "node": "start_mlflow_run",
     "node_id": "2a98208d",
-    "duration": 0.07100972700573038,
+    "duration": 0.09155024999927264,
     "status": "success"
   },
   {
@@ -111,7 +111,7 @@
     "event": "after_node_run",
     "node": "run_global_analyses",
     "node_id": "caf3ea87",
-    "duration": 2.172810630989261,
+    "duration": 2.3439627240004484,
     "status": "success"
   },
   {
@@ -160,7 +160,7 @@
     "event": "after_node_run",
     "node": "run_segmented_analyses",
     "node_id": "a4685053",
-    "duration": 3.29438382400258,
+    "duration": 3.651150075995247,
     "status": "success"
   },
   {
@@ -181,7 +181,7 @@
     "event": "after_node_run",
     "node": "split_full_data_node",
     "node_id": "082bffa9",
-    "duration": 0.008750523993512616,
+    "duration": 0.011395734996767715,
     "status": "success"
   },
   {
@@ -230,7 +230,7 @@
     "event": "after_node_run",
     "node": "separate_features_target_node",
     "node_id": "c2228351",
-    "duration": 0.00989637800375931,
+    "duration": 0.015304086002288386,
     "status": "success"
   },
   {
@@ -307,7 +307,7 @@
     "event": "after_node_run",
     "node": "train_catboost_model_node",
     "node_id": "69210d56",
-    "duration": 2.4192338720022235,
+    "duration": 3.194300637987908,
     "status": "success"
   },
   {
@@ -363,7 +363,7 @@
     "event": "after_node_run",
     "node": "generate_predictions",
     "node_id": "52113c83",
-    "duration": 0.008473217996652238,
+    "duration": 0.00936351100972388,
     "status": "success"
   },
   {
@@ -433,11 +433,11 @@
     "event": "after_node_run",
     "node": "run_pdp_analyses",
     "node_id": "c3c61022",
-    "duration": 1.1634645040030591,
+    "duration": 1.2800128829985624,
     "status": "success"
   },
   {
     "event": "after_pipeline_run",
-    "timestamp": "2025-09-05T20:12:43.227968+00:00"
+    "timestamp": "2025-09-05T20:52:36.697280+00:00"
   }
 ]

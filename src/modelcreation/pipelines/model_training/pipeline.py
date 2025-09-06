@@ -3,15 +3,15 @@
 from kedro.pipeline import Pipeline, node
 
 from .nodes import (
-    train_catboost_model,
-    split_data,
     separate_features_target,
+    split_data,
+    train_catboost_model,
 )
 
 
 def create_pipeline(**kwargs) -> Pipeline:
     """Create the model training pipeline.
-    
+
     Returns:
         A kedro ``Pipeline`` object.
     """

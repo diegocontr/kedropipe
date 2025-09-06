@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
 import mlflow
+from .serialization import serialize_tables
 
 
 class MLflowArtifactSaver:
@@ -92,18 +93,8 @@ class MLflowArtifactSaver:
         raise TypeError("figures must be None, a matplotlib Figure, or a dict[str, Figure]")
 
     def _normalize_tables(self, tables: Any) -> Dict[str, Any]:
-        """Normalize tables to a standard dictionary format."""
-        out: Dict[str, Any] = {}
-        if tables is None:
-            tables = {}
-        if isinstance(tables, dict):
-            out = tables
-        else:
-            if hasattr(tables, "to_dict"):
-                out = tables.to_dict()  # type: ignore
-            else:
-                raise TypeError("tables must be dict-like or have to_dict()")
-        return out
+        """Normalize tables to a standard dictionary format using shared serializer."""
+        return serialize_tables(tables)
 
     def _ensure_mlflow_run(self) -> None:
         """Ensure there's an active MLflow run, creating or restarting one if needed."""
